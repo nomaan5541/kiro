@@ -1,5 +1,7 @@
-"""
-School model for managing school information and subscriptions
+"""Data model for schools.
+
+This module defines the `School` model, which stores information about each
+school registered in the system, including subscription details.
 """
 from extensions import db
 from datetime import datetime
@@ -7,6 +9,7 @@ from enum import Enum
 
 
 class SchoolStatus(Enum):
+    """Enumeration for the status of a school's subscription."""
     ACTIVE = 'active'
     SUSPENDED = 'suspended'
     EXPIRED = 'expired'
@@ -14,7 +17,19 @@ class SchoolStatus(Enum):
 
 
 class School(db.Model):
-    """School model for managing school information"""
+    """Represents a school registered in the system.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): The name of the school.
+        email (str): The contact email for the school.
+        phone (str): The contact phone number for the school.
+        address (str): The physical address of the school.
+        subscription_start (datetime): The start date of the subscription.
+        subscription_end (datetime): The end date of the subscription.
+        status (SchoolStatus): The current status of the school.
+        setup_completed (bool): Whether the initial setup wizard is completed.
+    """
     __tablename__ = 'schools'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -39,19 +54,19 @@ class School(db.Model):
         return f'<School {self.name}>'
     
     def days_remaining(self):
-        """Calculate days remaining in subscription"""
+        """Calculates the number of days remaining in the subscription."""
         if self.subscription_end:
             delta = self.subscription_end - datetime.utcnow()
             return max(0, delta.days)
         return 0
     
     def is_subscription_active(self):
-        """Check if subscription is active"""
+        """Checks if the school's subscription is currently active."""
         return (self.status == SchoolStatus.ACTIVE and 
                 self.subscription_end > datetime.utcnow())
     
     def subscription_status_color(self):
-        """Get color code for subscription status"""
+        """Returns a color code based on the subscription status."""
         days_left = self.days_remaining()
         if days_left <= 3:
             return 'red'
@@ -61,7 +76,11 @@ class School(db.Model):
             return 'green'
     
     def to_dict(self):
-        """Convert school to dictionary"""
+        """Serializes the School object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the school.
+        """
         return {
             'id': self.id,
             'name': self.name,

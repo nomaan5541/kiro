@@ -1,5 +1,7 @@
-"""
-Holiday model for managing school holidays and announcements
+"""Data models for managing school holidays.
+
+This module defines the `Holiday` model for creating and managing school
+holidays and announcements.
 """
 from extensions import db
 from datetime import datetime
@@ -7,6 +9,7 @@ from enum import Enum
 
 
 class HolidayStatus(Enum):
+    """Enumeration for the status of a holiday."""
     UPCOMING = 'upcoming'
     ACTIVE = 'active'
     COMPLETED = 'completed'
@@ -14,7 +17,18 @@ class HolidayStatus(Enum):
 
 
 class Holiday(db.Model):
-    """Holiday model for managing school holidays and announcements"""
+    """Represents a school holiday or announcement.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        created_by (int): Foreign key for the user who created the holiday.
+        title (str): The title of the holiday.
+        description (str): A description of the holiday.
+        start_date (date): The start date of the holiday.
+        end_date (date): The end date of the holiday (for multi-day holidays).
+        status (HolidayStatus): The status of the holiday.
+    """
     __tablename__ = 'holidays'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -53,17 +67,17 @@ class Holiday(db.Model):
         return f'<Holiday {self.title} on {self.start_date}>'
     
     def get_duration_days(self):
-        """Calculate holiday duration in days"""
+        """Calculates the duration of the holiday in days."""
         if self.end_date:
             return (self.end_date - self.start_date).days + 1
         return 1
     
     def is_multi_day(self):
-        """Check if holiday spans multiple days"""
+        """Checks if the holiday spans multiple days."""
         return self.end_date is not None and self.end_date != self.start_date
     
     def get_status_display(self):
-        """Get human-readable status"""
+        """Returns a human-readable status for the holiday."""
         today = datetime.now().date()
         
         if self.start_date > today:
@@ -76,7 +90,11 @@ class Holiday(db.Model):
             return self.status.value.title()
     
     def to_dict(self):
-        """Convert holiday to dictionary"""
+        """Serializes the Holiday object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the holiday.
+        """
         return {
             'id': self.id,
             'school_id': self.school_id,

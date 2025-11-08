@@ -1,5 +1,7 @@
-"""
-Student model for managing student information and enrollment
+"""Data model for students.
+
+This module defines the `Student` model, which stores all the information
+related to a student in a school.
 """
 from extensions import db
 from datetime import datetime
@@ -7,6 +9,7 @@ from enum import Enum
 
 
 class StudentStatus(Enum):
+    """Enumeration for the status of a student."""
     ACTIVE = 'active'
     INACTIVE = 'inactive'
     GRADUATED = 'graduated'
@@ -14,7 +17,25 @@ class StudentStatus(Enum):
 
 
 class Student(db.Model):
-    """Student model for managing student information"""
+    """Represents a student in a school.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        class_id (int): Foreign key for the class.
+        roll_number (str): The student's roll number in their class.
+        admission_no (str): The unique admission number of the student.
+        name (str): The full name of the student.
+        father_name (str): The father's name.
+        mother_name (str): The mother's name.
+        gender (str): The gender of the student.
+        date_of_birth (date): The student's date of birth.
+        phone (str): The contact phone number.
+        email (str): The contact email address.
+        address (str): The student's address.
+        status (StudentStatus): The current status of the student.
+        // ... and other attributes
+    """
     __tablename__ = 'students'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -68,18 +89,22 @@ class Student(db.Model):
         return f'<Student {self.name} ({self.admission_no})>'
     
     def get_full_name(self):
-        """Get student's full name"""
+        """Returns the student's full name."""
         return self.name
     
     def get_age(self):
-        """Calculate student's age"""
+        """Calculates and returns the student's current age."""
         if self.date_of_birth:
             today = datetime.now().date()
             return today.year - self.date_of_birth.year - ((today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day))
         return None
     
     def to_dict(self):
-        """Convert student to dictionary"""
+        """Serializes the Student object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the student.
+        """
         return {
             'id': self.id,
             'school_id': self.school_id,

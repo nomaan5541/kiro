@@ -1,5 +1,7 @@
-"""
-Notification models for managing message templates and delivery tracking
+"""Data models for notifications.
+
+This module defines the models for managing notification templates and for
+logging sent notifications.
 """
 from extensions import db
 from datetime import datetime
@@ -7,6 +9,7 @@ from enum import Enum
 
 
 class NotificationType(Enum):
+    """Enumeration for the different types of notifications."""
     ATTENDANCE_ALERT = 'attendance_alert'
     FEE_REMINDER = 'fee_reminder'
     FEE_CONFIRMATION = 'fee_confirmation'
@@ -17,6 +20,7 @@ class NotificationType(Enum):
 
 
 class NotificationChannel(Enum):
+    """Enumeration for the different channels for sending notifications."""
     SMS = 'sms'
     WHATSAPP = 'whatsapp'
     EMAIL = 'email'
@@ -24,6 +28,7 @@ class NotificationChannel(Enum):
 
 
 class DeliveryStatus(Enum):
+    """Enumeration for the delivery status of a notification."""
     PENDING = 'pending'
     SENT = 'sent'
     DELIVERED = 'delivered'
@@ -32,7 +37,18 @@ class DeliveryStatus(Enum):
 
 
 class NotificationTemplate(db.Model):
-    """Template model for notification messages"""
+    """Represents a template for a notification message.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        name (str): The name of the template.
+        type (NotificationType): The type of notification.
+        channel (NotificationChannel): The channel for the notification.
+        subject (str): The subject of the message (for emails).
+        message_template (str): The message template with placeholders.
+        is_active (bool): Whether the template is active.
+    """
     __tablename__ = 'notification_templates'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -65,7 +81,14 @@ class NotificationTemplate(db.Model):
         return f'<NotificationTemplate {self.name} ({self.type.value})>'
     
     def render_message(self, variables):
-        """Render message template with provided variables"""
+        """Renders the message template with the given variables.
+
+        Args:
+            variables (dict): A dictionary of variables to substitute.
+
+        Returns:
+            str: The rendered message.
+        """
         message = self.message_template
         for key, value in variables.items():
             placeholder = f'{{{{{key}}}}}'
@@ -73,7 +96,11 @@ class NotificationTemplate(db.Model):
         return message
     
     def to_dict(self):
-        """Convert template to dictionary"""
+        """Serializes the NotificationTemplate object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the template.
+        """
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -90,7 +117,22 @@ class NotificationTemplate(db.Model):
 
 
 class NotificationLog(db.Model):
-    """Log model for tracking sent notifications"""
+    """Represents a log of a sent notification.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        template_id (int): Foreign key for the notification template.
+        recipient_type (str): The type of the recipient.
+        recipient_id (int): The ID of the recipient.
+        recipient_phone (str): The phone number of the recipient.
+        recipient_email (str): The email address of the recipient.
+        subject (str): The subject of the notification.
+        message (str): The content of the notification.
+        status (DeliveryStatus): The delivery status of the notification.
+        sent_at (datetime): The timestamp when the notification was sent.
+        // ... and other attributes
+    """
     __tablename__ = 'notification_logs'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -135,24 +177,36 @@ class NotificationLog(db.Model):
         return f'<NotificationLog {self.type.value} to {self.recipient_name} ({self.status.value})>'
     
     def mark_sent(self, external_id=None):
-        """Mark notification as sent"""
+        """Marks the notification as sent.
+
+        Args:
+            external_id (str, optional): The ID from the external service.
+        """
         self.status = DeliveryStatus.SENT
         self.sent_at = datetime.utcnow()
         if external_id:
             self.external_id = external_id
     
     def mark_delivered(self):
-        """Mark notification as delivered"""
+        """Marks the notification as delivered."""
         self.status = DeliveryStatus.DELIVERED
         self.delivered_at = datetime.utcnow()
     
     def mark_failed(self, error_message):
-        """Mark notification as failed"""
+        """Marks the notification as failed.
+
+        Args:
+            error_message (str): The error message from the delivery service.
+        """
         self.status = DeliveryStatus.FAILED
         self.error_message = error_message
     
     def to_dict(self):
-        """Convert log to dictionary"""
+        """Serializes the NotificationLog object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the notification log.
+        """
         return {
             'id': self.id,
             'school_id': self.school_id,

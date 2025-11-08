@@ -1,5 +1,8 @@
-"""
-Teacher model for managing teacher information and assignments
+"""Data models for teachers and their assignments.
+
+This module defines the models for `Teacher`, `TeacherClassAssignment`, and
+`TeacherSubjectAssignment`, which are used to manage teacher information and
+their responsibilities within the school.
 """
 from extensions import db
 from datetime import datetime
@@ -7,6 +10,7 @@ from enum import Enum
 
 
 class TeacherStatus(Enum):
+    """Enumeration for the employment status of a teacher."""
     ACTIVE = 'active'
     INACTIVE = 'inactive'
     ON_LEAVE = 'on_leave'
@@ -14,7 +18,20 @@ class TeacherStatus(Enum):
 
 
 class Teacher(db.Model):
-    """Teacher model for managing teacher information"""
+    """Represents a teacher in a school.
+
+    Attributes:
+        id (int): Primary key.
+        user_id (int): Foreign key for the associated user account.
+        school_id (int): Foreign key for the school.
+        employee_id (str): The unique employee ID for the teacher.
+        designation (str): The teacher's designation.
+        qualification (str): The teacher's qualifications.
+        experience_years (int): The teacher's years of experience.
+        phone (str): The teacher's phone number.
+        status (TeacherStatus): The teacher's employment status.
+        // ... and other personal and professional information
+    """
     __tablename__ = 'teachers'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -72,15 +89,19 @@ class Teacher(db.Model):
         return f'<Teacher {self.user.name if self.user else "Unknown"} ({self.employee_id})>'
     
     def get_assigned_classes(self):
-        """Get classes assigned to this teacher"""
+        """Returns a list of classes assigned to the teacher."""
         return [assignment.class_info for assignment in self.class_assignments if assignment.is_active]
     
     def get_assigned_subjects(self):
-        """Get subjects assigned to this teacher"""
+        """Returns a list of subjects assigned to the teacher."""
         return [assignment.subject for assignment in self.subject_assignments if assignment.is_active]
     
     def to_dict(self):
-        """Convert teacher to dictionary"""
+        """Serializes the Teacher object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the teacher.
+        """
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -116,7 +137,16 @@ class Teacher(db.Model):
 
 
 class TeacherClassAssignment(db.Model):
-    """Teacher class assignment model"""
+    """Represents the assignment of a teacher to a class.
+
+    Attributes:
+        id (int): Primary key.
+        teacher_id (int): Foreign key for the teacher.
+        class_id (int): Foreign key for the class.
+        academic_year (str): The academic year of the assignment.
+        is_class_teacher (bool): Whether the teacher is the main class teacher.
+        is_active (bool): Whether the assignment is currently active.
+    """
     __tablename__ = 'teacher_class_assignments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -143,7 +173,16 @@ class TeacherClassAssignment(db.Model):
 
 
 class TeacherSubjectAssignment(db.Model):
-    """Teacher subject assignment model"""
+    """Represents the assignment of a teacher to a subject within a class.
+
+    Attributes:
+        id (int): Primary key.
+        teacher_id (int): Foreign key for the teacher.
+        subject_id (int): Foreign key for the subject.
+        class_id (int): Foreign key for the class.
+        academic_year (str): The academic year of the assignment.
+        is_active (bool): Whether the assignment is currently active.
+    """
     __tablename__ = 'teacher_subject_assignments'
     
     id = db.Column(db.Integer, primary_key=True)

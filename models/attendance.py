@@ -1,5 +1,8 @@
-"""
-Attendance model for tracking student attendance
+"""Data models for student attendance.
+
+This module defines the `Attendance` model for tracking daily attendance
+records and the `AttendanceSummary` model for storing aggregated attendance
+statistics.
 """
 from extensions import db
 from datetime import datetime, date
@@ -7,6 +10,7 @@ from enum import Enum
 
 
 class AttendanceStatus(Enum):
+    """Enumeration for the different statuses of an attendance record."""
     PRESENT = 'present'
     ABSENT = 'absent'
     LEAVE = 'leave'
@@ -14,7 +18,19 @@ class AttendanceStatus(Enum):
 
 
 class Attendance(db.Model):
-    """Attendance model for tracking daily student attendance"""
+    """Represents a single daily attendance record for a student.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        student_id (int): Foreign key for the student.
+        class_id (int): Foreign key for the class.
+        date (date): The date of the attendance record.
+        status (AttendanceStatus): The attendance status.
+        remarks (str): Any remarks about the attendance.
+        marked_by (int): The ID of the user who marked the attendance.
+        marked_at (datetime): The timestamp when the attendance was marked.
+    """
     __tablename__ = 'attendance'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -50,7 +66,11 @@ class Attendance(db.Model):
         return f'<Attendance {self.student.name if self.student else "Unknown"} - {self.date} - {self.status.value}>'
     
     def to_dict(self):
-        """Convert attendance to dictionary"""
+        """Serializes the Attendance object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the attendance record.
+        """
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -66,7 +86,25 @@ class Attendance(db.Model):
 
 
 class AttendanceSummary(db.Model):
-    """Attendance summary model for storing calculated attendance statistics"""
+    """Represents a monthly summary of a student's attendance.
+
+    This model is used to store pre-calculated attendance statistics for
+    faster retrieval and reporting.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        student_id (int): Foreign key for the student.
+        class_id (int): Foreign key for the class.
+        month (int): The month of the summary (1-12).
+        year (int): The year of the summary.
+        total_days (int): The total number of school days in the month.
+        present_days (int): The number of days the student was present.
+        absent_days (int): The number of days the student was absent.
+        leave_days (int): The number of days the student was on leave.
+        late_days (int): The number of days the student was late.
+        attendance_percentage (float): The calculated attendance percentage.
+    """
     __tablename__ = 'attendance_summary'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -106,7 +144,11 @@ class AttendanceSummary(db.Model):
         return f'<AttendanceSummary {self.student.name if self.student else "Unknown"} - {self.month}/{self.year}>'
     
     def calculate_percentage(self):
-        """Calculate attendance percentage"""
+        """Calculates and updates the attendance percentage for the summary period.
+
+        Returns:
+            float: The calculated attendance percentage.
+        """
         if self.total_days > 0:
             self.attendance_percentage = (self.present_days / self.total_days) * 100
         else:
@@ -114,7 +156,11 @@ class AttendanceSummary(db.Model):
         return self.attendance_percentage
     
     def to_dict(self):
-        """Convert attendance summary to dictionary"""
+        """Serializes the AttendanceSummary object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the attendance summary.
+        """
         return {
             'id': self.id,
             'school_id': self.school_id,

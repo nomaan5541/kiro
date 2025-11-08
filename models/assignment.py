@@ -1,5 +1,8 @@
-"""
-Assignment and Study Material models
+"""Data models for assignments, submissions, and study materials.
+
+This module defines the SQLAlchemy models for managing educational content,
+including assignments, student submissions, and teacher-provided study
+materials.
 """
 from extensions import db
 from datetime import datetime, date
@@ -7,6 +10,7 @@ from enum import Enum
 
 
 class AssignmentType(Enum):
+    """Enumeration for the different types of assignments."""
     HOMEWORK = 'homework'
     PROJECT = 'project'
     QUIZ = 'quiz'
@@ -18,6 +22,7 @@ class AssignmentType(Enum):
 
 
 class AssignmentStatus(Enum):
+    """Enumeration for the status of an assignment."""
     DRAFT = 'draft'
     PUBLISHED = 'published'
     CLOSED = 'closed'
@@ -25,6 +30,7 @@ class AssignmentStatus(Enum):
 
 
 class SubmissionStatus(Enum):
+    """Enumeration for the status of a student's submission."""
     NOT_SUBMITTED = 'not_submitted'
     SUBMITTED = 'submitted'
     LATE_SUBMITTED = 'late_submitted'
@@ -33,7 +39,27 @@ class SubmissionStatus(Enum):
 
 
 class Assignment(db.Model):
-    """Assignment model for managing homework, projects, and tasks"""
+    """Represents an assignment created by a teacher.
+
+    This model stores all the information related to an assignment, including
+    its title, description, due date, and associated class and subject.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        teacher_id (int): Foreign key for the teacher who created it.
+        class_id (int): Foreign key for the class it's assigned to.
+        subject_id (int): Foreign key for the subject it belongs to.
+        title (str): The title of the assignment.
+        description (str): A detailed description of the assignment.
+        instructions (str): Instructions for the students.
+        type (AssignmentType): The type of the assignment.
+        status (AssignmentStatus): The current status of the assignment.
+        assigned_date (datetime): The date the assignment was assigned.
+        due_date (datetime): The due date for the assignment.
+        max_marks (int): The maximum marks for the assignment.
+        // ... and other attributes
+    """
     __tablename__ = 'assignments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -81,38 +107,62 @@ class Assignment(db.Model):
         return f'<Assignment {self.title}>'
     
     def is_overdue(self):
-        """Check if assignment is overdue"""
+        """Checks if the assignment is past its due date.
+
+        Returns:
+            bool: True if the assignment is overdue, False otherwise.
+        """
         return datetime.utcnow() > self.due_date
     
     def days_until_due(self):
-        """Get days until due date"""
+        """Calculates the number of days remaining until the due date.
+
+        Returns:
+            int: The number of days until the due date.
+        """
         if self.is_overdue():
             return 0
         return (self.due_date - datetime.utcnow()).days
     
     def get_submission_count(self):
-        """Get total number of submissions"""
+        """Counts the number of students who have submitted the assignment.
+
+        Returns:
+            int: The number of submissions.
+        """
         return len([s for s in self.submissions if s.status != SubmissionStatus.NOT_SUBMITTED])
     
     def get_pending_count(self):
-        """Get number of pending submissions"""
+        """Counts the number of students who have not yet submitted.
+
+        Returns:
+            int: The number of pending submissions.
+        """
         return len([s for s in self.submissions if s.status == SubmissionStatus.NOT_SUBMITTED])
     
     def get_graded_count(self):
-        """Get number of graded submissions"""
+        """Counts the number of submissions that have been graded.
+
+        Returns:
+            int: The number of graded submissions.
+        """
         return len([s for s in self.submissions if s.status == SubmissionStatus.GRADED])
     
     def publish(self):
-        """Publish the assignment"""
+        """Publishes the assignment, making it visible to students."""
         self.status = AssignmentStatus.PUBLISHED
         self.published_at = datetime.utcnow()
     
     def archive(self):
-        """Archive the assignment"""
+        """Archives the assignment, hiding it from the main view."""
         self.status = AssignmentStatus.ARCHIVED
     
     def get_submission_stats(self):
-        """Get submission statistics"""
+        """Calculates and returns submission statistics for the assignment.
+
+        Returns:
+            dict: A dictionary of submission statistics.
+        """
         from models.student import Student
         
         # Get all students in the class
@@ -134,6 +184,11 @@ class Assignment(db.Model):
         }
     
     def to_dict(self):
+        """Serializes the Assignment object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the assignment.
+        """
         return {
             'id': self.id,
             'title': self.title,
@@ -154,7 +209,20 @@ class Assignment(db.Model):
 
 
 class AssignmentSubmission(db.Model):
-    """Student submissions for assignments"""
+    """Represents a student's submission for an assignment.
+
+    Attributes:
+        id (int): Primary key.
+        assignment_id (int): Foreign key for the assignment.
+        student_id (int): Foreign key for the student.
+        status (SubmissionStatus): The status of the submission.
+        submission_text (str): The text content of the submission.
+        marks_obtained (int): The marks obtained by the student.
+        grade (str): The grade awarded to the student.
+        teacher_feedback (str): Feedback from the teacher.
+        submitted_at (datetime): The timestamp of the submission.
+        // ... and other attributes
+    """
     __tablename__ = 'assignment_submissions'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -193,12 +261,18 @@ class AssignmentSubmission(db.Model):
         return f'<AssignmentSubmission {self.assignment.title} by {self.student.name}>'
     
     def submit(self):
-        """Mark submission as submitted"""
+        """Marks the submission as submitted, handling late submissions."""
         self.status = SubmissionStatus.LATE_SUBMITTED if self.assignment.is_overdue() else SubmissionStatus.SUBMITTED
         self.submitted_at = datetime.utcnow()
     
     def grade(self, marks, grade, feedback=None):
-        """Grade the submission"""
+        """Grades the submission.
+
+        Args:
+            marks (int): The marks awarded.
+            grade (str): The grade awarded.
+            feedback (str, optional): Feedback for the student.
+        """
         self.marks_obtained = marks
         self.grade = grade
         self.teacher_feedback = feedback
@@ -206,24 +280,28 @@ class AssignmentSubmission(db.Model):
         self.graded_at = datetime.utcnow()
     
     def return_to_student(self):
-        """Return graded submission to student"""
+        """Marks the submission as returned to the student."""
         self.status = SubmissionStatus.RETURNED
         self.returned_at = datetime.utcnow()
     
     @property
     def is_late(self):
-        """Check if submission was late"""
+        """Checks if the submission was late."""
         return self.status == SubmissionStatus.LATE_SUBMITTED
     
     @property
     def percentage(self):
-        """Get percentage score"""
+        """Calculates the percentage score."""
         if self.marks_obtained is not None and self.assignment.max_marks:
             return (self.marks_obtained / self.assignment.max_marks) * 100
         return None
     
     def to_dict(self):
-        """Convert submission to dictionary"""
+        """Serializes the AssignmentSubmission object to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the submission.
+        """
         return {
             'id': self.id,
             'assignment_id': self.assignment_id,
@@ -245,7 +323,19 @@ class AssignmentSubmission(db.Model):
 
 
 class AssignmentAttachment(db.Model):
-    """Files attached to assignments by teachers"""
+    """Represents a file attached to an assignment by a teacher.
+
+    Attributes:
+        id (int): Primary key.
+        assignment_id (int): Foreign key for the assignment.
+        filename (str): The name of the file on the server.
+        original_filename (str): The original name of the file.
+        file_path (str): The path to the file on the server.
+        file_size (int): The size of the file in bytes.
+        mime_type (str): The MIME type of the file.
+        uploaded_at (datetime): The timestamp of the upload.
+        uploaded_by (int): The ID of the teacher who uploaded the file.
+    """
     __tablename__ = 'assignment_attachments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -267,10 +357,11 @@ class AssignmentAttachment(db.Model):
         return f'<AssignmentAttachment {self.original_filename}>'
     
     def get_file_size_mb(self):
-        """Get file size in MB"""
+        """Returns the file size in megabytes."""
         return round(self.file_size / (1024 * 1024), 2)
     
     def to_dict(self):
+        """Serializes the AssignmentAttachment object to a dictionary."""
         return {
             'id': self.id,
             'filename': self.filename,
@@ -283,7 +374,18 @@ class AssignmentAttachment(db.Model):
 
 
 class SubmissionAttachment(db.Model):
-    """Files attached to submissions by students"""
+    """Represents a file attached to a submission by a student.
+
+    Attributes:
+        id (int): Primary key.
+        submission_id (int): Foreign key for the submission.
+        filename (str): The name of the file on the server.
+        original_filename (str): The original name of the file.
+        file_path (str): The path to the file on the server.
+        file_size (int): The size of the file in bytes.
+        mime_type (str): The MIME type of the file.
+        uploaded_at (datetime): The timestamp of the upload.
+    """
     __tablename__ = 'submission_attachments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -301,10 +403,11 @@ class SubmissionAttachment(db.Model):
         return f'<SubmissionAttachment {self.original_filename}>'
     
     def get_file_size_mb(self):
-        """Get file size in MB"""
+        """Returns the file size in megabytes."""
         return round(self.file_size / (1024 * 1024), 2)
     
     def to_dict(self):
+        """Serializes the SubmissionAttachment object to a dictionary."""
         return {
             'id': self.id,
             'filename': self.filename,
@@ -317,7 +420,23 @@ class SubmissionAttachment(db.Model):
 
 
 class StudyMaterial(db.Model):
-    """Study materials shared by teachers"""
+    """Represents a study material shared by a teacher.
+
+    Attributes:
+        id (int): Primary key.
+        school_id (int): Foreign key for the school.
+        teacher_id (int): Foreign key for the teacher.
+        class_id (int): Foreign key for the class.
+        subject_id (int): Foreign key for the subject.
+        title (str): The title of the study material.
+        description (str): A description of the study material.
+        content (str): The text content of the material.
+        category (str): The category of the material.
+        tags (str): A JSON string of tags.
+        is_public (bool): Whether the material is visible to all classes.
+        is_downloadable (bool): Whether the material can be downloaded.
+        // ... and other attributes
+    """
     __tablename__ = 'study_materials'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -357,7 +476,7 @@ class StudyMaterial(db.Model):
         return f'<StudyMaterial {self.title}>'
     
     def get_tags_list(self):
-        """Get tags as list"""
+        """Returns the tags as a list."""
         if not self.tags:
             return []
         try:
@@ -367,16 +486,17 @@ class StudyMaterial(db.Model):
             return []
     
     def increment_view_count(self):
-        """Increment view count"""
+        """Increments the view count of the study material."""
         self.view_count += 1
         db.session.commit()
     
     def increment_download_count(self):
-        """Increment download count"""
+        """Increments the download count of the study material."""
         self.download_count += 1
         db.session.commit()
     
     def to_dict(self):
+        """Serializes the StudyMaterial object to a dictionary."""
         return {
             'id': self.id,
             'title': self.title,
@@ -394,7 +514,18 @@ class StudyMaterial(db.Model):
 
 
 class StudyMaterialAttachment(db.Model):
-    """Files attached to study materials"""
+    """Represents a file attached to a study material.
+
+    Attributes:
+        id (int): Primary key.
+        study_material_id (int): Foreign key for the study material.
+        filename (str): The name of the file on the server.
+        original_filename (str): The original name of the file.
+        file_path (str): The path to the file on the server.
+        file_size (int): The size of the file in bytes.
+        mime_type (str): The MIME type of the file.
+        uploaded_at (datetime): The timestamp of the upload.
+    """
     __tablename__ = 'study_material_attachments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -412,10 +543,11 @@ class StudyMaterialAttachment(db.Model):
         return f'<StudyMaterialAttachment {self.original_filename}>'
     
     def get_file_size_mb(self):
-        """Get file size in MB"""
+        """Returns the file size in megabytes."""
         return round(self.file_size / (1024 * 1024), 2)
     
     def to_dict(self):
+        """Serializes the StudyMaterialAttachment object to a dictionary."""
         return {
             'id': self.id,
             'filename': self.filename,
