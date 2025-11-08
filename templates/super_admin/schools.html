@@ -1,0 +1,351 @@
+{% extends "content_base.html" %}
+
+{% block title %}Manage Schools - Super Admin{% endblock %}
+
+{% block page_title %}Manage Schools{% endblock %}
+
+{% block page_description %}View and manage all registered schools{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('super_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('super_admin.schools') }}">
+        <i class="fas fa-school"></i> Schools
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.users') }}">
+        <i class="fas fa-users"></i> Users
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.activity_logs') }}">
+        <i class="fas fa-history"></i> Activity Logs
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+    <div style="position: relative;">
+        <input type="text" id="searchInput" placeholder="Search schools..."
+            style="padding: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) var(--spacing-xl); background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-lg); color: var(--text-primary); width: 250px;"
+            onkeyup="filterSchools()">
+        <i class="fas fa-search"
+            style="position: absolute; left: var(--spacing-md); top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+    </div>
+    <a href="{{ url_for('super_admin.register_school') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Register School
+    </a>
+    <button class="btn btn-outline btn-sm" onclick="exportSchools()">
+        <i class="fas fa-download"></i> Export
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- School Statistics -->
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <div class="tactical-card text-center">
+            <div style="color: var(--accent-orange); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-school"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-orange);">{{ schools.total if schools else 0 }}
+            </h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Schools</p>
+            <small style="color: var(--text-muted);">Registered</small>
+        </div>
+
+        <div class="tactical-card text-center">
+            <div style="color: var(--success); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--success);">{{ active_schools if active_schools
+                else 0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Active Schools</p>
+            <small style="color: var(--text-muted);">Currently Operating</small>
+        </div>
+
+        <div class="tactical-card text-center">
+            <div style="color: var(--warning); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--warning);">{{ expiring_soon if expiring_soon else
+                0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Expiring Soon</p>
+            <small style="color: var(--text-muted);">Next 30 Days</small>
+        </div>
+
+        <div class="tactical-card text-center">
+            <div style="color: var(--info); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-rupee-sign"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--info);">₹{{ "{:,.0f}".format(total_revenue if
+                total_revenue else 0) }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Revenue</p>
+            <small style="color: var(--text-muted);">This Month</small>
+        </div>
+    </div>
+
+    <!-- Schools Grid -->
+    {% if schools and schools.items %}
+    <div
+        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        {% for school in schools.items %}
+        <div class="tactical-card school-card" data-school-name="{{ school.name.lower() }}"
+            data-school-email="{{ school.email.lower() }}" style="transition: all 0.3s ease;">
+
+            <!-- Header -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--spacing-lg);">
+                <div>
+                    <h3 style="color: var(--accent-orange); margin: 0;">{{ school.name }}</h3>
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin: var(--spacing-xs) 0 0 0;">{{
+                        school.email }}</p>
+                </div>
+                <div>
+                    {% if school.status.value == 'active' %}
+                    <span class="badge badge-success">
+                        <i class="fas fa-check-circle"></i> Active
+                    </span>
+                    {% elif school.status.value == 'suspended' %}
+                    <span class="badge badge-warning">
+                        <i class="fas fa-pause-circle"></i> Suspended
+                    </span>
+                    {% elif school.status.value == 'expired' %}
+                    <span class="badge badge-error">
+                        <i class="fas fa-times-circle"></i> Expired
+                    </span>
+                    {% else %}
+                    <span class="badge badge-outline">
+                        <i class="fas fa-minus-circle"></i> Inactive
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Subscription Info -->
+            <div
+                style="display: flex; flex-direction: column; gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Subscription Start</span>
+                    <span style="font-weight: 600;">
+                        {{ school.subscription_start.strftime('%d %b %Y') if school.subscription_start else 'N/A' }}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Subscription End</span>
+                    <span style="font-weight: 600;">
+                        {{ school.subscription_end.strftime('%d %b %Y') if school.subscription_end else 'N/A' }}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Days Remaining</span>
+                    {% set days_remaining = (school.subscription_end - today).days if school.subscription_end else 0 %}
+                    {% if days_remaining <= 0 %} <span style="color: var(--error); font-weight: 600;">{{ days_remaining
+                        }} days</span>
+                        {% elif days_remaining <= 30 %} <span style="color: var(--warning); font-weight: 600;">{{
+                            days_remaining }} days</span>
+                            {% else %}
+                            <span style="color: var(--success); font-weight: 600;">{{ days_remaining }} days</span>
+                            {% endif %}
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Setup Status</span>
+                    {% if school.setup_completed %}
+                    <span class="badge badge-success"><i class="fas fa-check"></i> Completed</span>
+                    {% else %}
+                    <span class="badge badge-warning"><i class="fas fa-clock"></i> Pending</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- School Stats -->
+            <div
+                style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md); margin-bottom: var(--spacing-lg);">
+                <div style="text-align: center;">
+                    <div style="color: var(--accent-orange); font-size: 1.5rem; font-weight: 700;">0</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Users</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--success); font-size: 1.5rem; font-weight: 700;">0</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Students</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--info); font-size: 1.5rem; font-weight: 700;">0</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Classes</div>
+                </div>
+            </div>
+
+            {% if school.address %}
+            <div
+                style="display: flex; align-items: flex-start; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); color: var(--text-muted); font-size: 0.875rem;">
+                <i class="fas fa-map-marker-alt" style="margin-top: var(--spacing-xs);"></i>
+                <span>{{ school.address }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div style="display: flex; gap: var(--spacing-xs); flex-wrap: wrap;">
+                <form method="POST" action="{{ url_for('super_admin.toggle_school_status', school_id=school.id) }}"
+                    style="display: inline;">
+                    {% if school.status.value == 'active' %}
+                    <button type="submit" class="btn btn-sm btn-warning"
+                        onclick="return confirm('Are you sure you want to suspend this school?')">
+                        <i class="fas fa-pause"></i> Suspend
+                    </button>
+                    {% elif school.status.value == 'suspended' %}
+                    <button type="submit" class="btn btn-sm btn-success"
+                        onclick="return confirm('Are you sure you want to activate this school?')">
+                        <i class="fas fa-play"></i> Activate
+                    </button>
+                    {% endif %}
+                </form>
+
+                <button class="btn btn-sm btn-primary" onclick="showExtendModal('{{ school.id }}')">
+                    <i class="fas fa-calendar-plus"></i> Extend
+                </button>
+
+                <button class="btn btn-sm btn-outline" onclick="viewSchoolDetails('{{ school.id }}')">
+                    <i class="fas fa-eye"></i> View
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if schools.pages > 1 %}
+    <div
+        style="display: flex; justify-content: center; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-xl);">
+        {% if schools.has_prev %}
+        <a href="{{ url_for('super_admin.schools', page=schools.prev_num) }}" class="btn btn-outline btn-sm">
+            <i class="fas fa-chevron-left"></i> Previous
+        </a>
+        {% endif %}
+
+        <span style="color: var(--text-muted);">
+            Page {{ schools.page }} of {{ schools.pages }}
+        </span>
+
+        {% if schools.has_next %}
+        <a href="{{ url_for('super_admin.schools', page=schools.next_num) }}" class="btn btn-outline btn-sm">
+            Next <i class="fas fa-chevron-right"></i>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="tactical-card">
+        <div class="empty-state">
+            <i class="fas fa-school"
+                style="font-size: 3rem; color: var(--text-muted); margin-bottom: var(--spacing-md);"></i>
+            <h3>No Schools Registered</h3>
+            <p>No schools have been registered yet.</p>
+            <a href="{{ url_for('super_admin.register_school') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Register First School
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Extend Subscription Modal -->
+<div id="extendModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Extend Subscription</h3>
+        <form id="extendForm" method="POST">
+            <div class="form-group">
+                <label class="form-label">Extension Period (months)</label>
+                <input type="number" name="months" class="form-input" value="12" min="1" max="60" required>
+            </div>
+            <div style="display: flex; gap: var(--spacing-sm); justify-content: end; margin-top: var(--spacing-lg);">
+                <button type="button" class="btn btn-outline" onclick="closeModal('extendModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Extend Subscription</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Filter schools
+    function filterSchools() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const schoolCards = document.querySelectorAll('.school-card');
+
+        schoolCards.forEach(card => {
+            const schoolName = card.getAttribute('data-school-name');
+            const schoolEmail = card.getAttribute('data-school-email');
+
+            if (schoolName.includes(searchTerm) || schoolEmail.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    function showExtendModal(schoolId) {
+        const form = document.getElementById('extendForm');
+        form.action = `/super-admin/schools/${schoolId}/extend-subscription`;
+        document.getElementById('extendModal').style.display = 'flex';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    function viewSchoolDetails(schoolId) {
+        alert('School details functionality will be implemented soon.');
+    }
+
+    function exportSchools() {
+        alert('Export functionality will be implemented soon.');
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function (event) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+<style>
+    .school-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: var(--spacing-xl);
+        color: var(--text-muted);
+    }
+</style>
+{% endblock %}

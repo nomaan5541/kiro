@@ -1,0 +1,381 @@
+{% extends "content_base.html" %}
+
+{% block title %}{{ assignment.title }} - Student Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}{{ assignment.title }}{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('student.assignments') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Assignments
+    </a>
+    {% if assignment.file_path %}
+        <a href="{{ url_for('student.download_assignment', assignment_id=assignment.id) }}" class="btn btn-primary btn-sm">
+            <i class="fas fa-download"></i> Download File
+        </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Assignment Status -->
+<div class="dashboard-card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-info-circle"></i> Assignment Status</h3>
+        {% if assignment.due_date %}
+            {% if assignment.due_date < today %}
+                <span class="badge badge-error">Overdue</span>
+            {% elif (assignment.due_date - today).days <= 3 %}
+                <span class="badge badge-warning">Due Soon</span>
+            {% else %}
+                <span class="badge badge-success">Active</span>
+            {% endif %}
+        {% else %}
+            <span class="badge badge-info">No Due Date</span>
+        {% endif %}
+    </div>
+    <div class="card-content">
+        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: var(--accent-orange); font-size: 1.5rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {{ assignment.assigned_date.strftime('%d') }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">{{ assignment.assigned_date.strftime('%b %Y') }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.75rem; margin-top: var(--spacing-xs);">Assigned</div>
+            </div>
+            
+            {% if assignment.due_date %}
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: {{ 'var(--error)' if assignment.due_date < today else 'var(--warning)' if (assignment.due_date - today).days <= 3 else 'var(--success)' }}; font-size: 1.5rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {{ assignment.due_date.strftime('%d') }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">{{ assignment.due_date.strftime('%b %Y') }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.75rem; margin-top: var(--spacing-xs);">Due Date</div>
+            </div>
+            
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                {% set days_left = (assignment.due_date - today).days %}
+                <div style="color: {{ 'var(--error)' if days_left < 0 else 'var(--warning)' if days_left <= 3 else 'var(--success)' }}; font-size: 1.5rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {{ days_left if days_left >= 0 else 0 }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Days</div>
+                <div style="color: var(--text-secondary); font-size: 0.75rem; margin-top: var(--spacing-xs);">{{ 'Overdue' if days_left < 0 else 'Remaining' }}</div>
+            </div>
+            {% endif %}
+            
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: var(--info); font-size: 1.5rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    <i class="fas fa-{{ 'file-alt' if assignment.file_path else 'text' }}"></i>
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">{{ 'File' if assignment.file_path else 'Text' }}</div>
+                <div style="color: var(--text-secondary); font-size: 0.75rem; margin-top: var(--spacing-xs);">Type</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Details -->
+<div class="dashboard-grid">
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-file-alt"></i> Assignment Details</h3>
+            {% if assignment.subject %}
+                <span class="badge badge-info">{{ assignment.subject.name }}</span>
+            {% endif %}
+        </div>
+        <div class="card-content">
+            <div style="margin-bottom: var(--spacing-xl);">
+                <h4 style="color: var(--text-primary); margin-bottom: var(--spacing-md);">{{ assignment.title }}</h4>
+                
+                {% if assignment.description %}
+                    <div style="background-color: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg); margin-bottom: var(--spacing-lg);">
+                        <h5 style="color: var(--accent-orange); margin-bottom: var(--spacing-md);">Description</h5>
+                        <div style="color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;">{{ assignment.description }}</div>
+                    </div>
+                {% endif %}
+                
+                {% if assignment.instructions %}
+                    <div style="background-color: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg); margin-bottom: var(--spacing-lg);">
+                        <h5 style="color: var(--accent-orange); margin-bottom: var(--spacing-md);">Instructions</h5>
+                        <div style="color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;">{{ assignment.instructions }}</div>
+                    </div>
+                {% endif %}
+                
+                {% if assignment.file_path %}
+                    <div style="background-color: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg);">
+                        <h5 style="color: var(--accent-orange); margin-bottom: var(--spacing-md);">Attached File</h5>
+                        <div style="display: flex; align-items: center; gap: var(--spacing-md); padding: var(--spacing-md); background-color: var(--bg-secondary); border-radius: var(--radius-md);">
+                            <i class="fas fa-file-alt" style="color: var(--info); font-size: 1.5rem;"></i>
+                            <div style="flex: 1;">
+                                <div style="color: var(--text-primary); font-weight: 600;">{{ assignment.file_name or 'Assignment File' }}</div>
+                                <div style="color: var(--text-muted); font-size: 0.875rem;">Click to download and view the assignment file</div>
+                            </div>
+                            <a href="{{ url_for('student.download_assignment', assignment_id=assignment.id) }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Assignment Info -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Assignment Info</h3>
+        </div>
+        <div class="card-content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Subject</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ assignment.subject.name if assignment.subject else 'General' }}</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Class</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ assignment.class_info.get_display_name() if assignment.class_info else 'N/A' }}</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Assigned Date</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ assignment.assigned_date.strftime('%d %b %Y') }}</span>
+                    </div>
+                </div>
+                
+                {% if assignment.due_date %}
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Due Date</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: {{ 'var(--error)' if assignment.due_date < today else 'var(--text-primary)' }}; font-weight: 600;">{{ assignment.due_date.strftime('%d %b %Y') }}</span>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Status</div>
+                    </div>
+                    <div class="list-item-actions">
+                        {% if assignment.due_date %}
+                            {% if assignment.due_date < today %}
+                                <span class="status-badge overdue">Overdue</span>
+                            {% elif (assignment.due_date - today).days <= 3 %}
+                                <span class="status-badge pending">Due Soon</span>
+                            {% else %}
+                                <span class="status-badge active">Active</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="status-badge active">Active</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if assignment.teacher %}
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Teacher</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ assignment.teacher.name }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="dashboard-card" style="margin-top: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-tasks"></i> Actions</h3>
+    </div>
+    <div class="card-content">
+        <div class="quick-actions">
+            {% if assignment.file_path %}
+                <button class="quick-action-btn" onclick="downloadAssignment()">
+                    <i class="fas fa-download"></i>
+                    <span>Download File</span>
+                </button>
+            {% endif %}
+            
+            <button class="quick-action-btn" onclick="printAssignment()">
+                <i class="fas fa-print"></i>
+                <span>Print Assignment</span>
+            </button>
+            
+            <button class="quick-action-btn" onclick="shareAssignment()">
+                <i class="fas fa-share"></i>
+                <span>Share</span>
+            </button>
+            
+            <a href="{{ url_for('student.assignments') }}" class="quick-action-btn">
+                <i class="fas fa-list"></i>
+                <span>All Assignments</span>
+            </a>
+            
+            {% if assignment.teacher %}
+                <button class="quick-action-btn" onclick="contactTeacher()">
+                    <i class="fas fa-envelope"></i>
+                    <span>Contact Teacher</span>
+                </button>
+            {% endif %}
+            
+            <button class="quick-action-btn" onclick="markAsCompleted()">
+                <i class="fas fa-check"></i>
+                <span>Mark Complete</span>
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function downloadAssignment() {
+    {% if assignment.file_path %}
+        window.location.href = '{{ url_for("student.download_assignment", assignment_id=assignment.id) }}';
+    {% else %}
+        showNotification('No file attached to this assignment', 'warning');
+    {% endif %}
+}
+
+function printAssignment() {
+    window.print();
+}
+
+function shareAssignment() {
+    if (navigator.share) {
+        navigator.share({
+            title: '{{ assignment.title }}',
+            text: 'Assignment: {{ assignment.title }}',
+            url: window.location.href
+        });
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(window.location.href).then(() => {
+            showNotification('Assignment link copied to clipboard', 'success');
+        });
+    }
+}
+
+function contactTeacher() {
+    {% if assignment.teacher %}
+        showNotification('Contact feature will be available soon', 'info');
+    {% else %}
+        showNotification('Teacher information not available', 'warning');
+    {% endif %}
+}
+
+function markAsCompleted() {
+    const confirmed = confirm('Mark this assignment as completed?');
+    if (confirmed) {
+        showNotification('Assignment marked as completed', 'success');
+        // In a real implementation, you would make an API call here
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+// Auto-refresh due date countdown
+setInterval(() => {
+    const now = new Date();
+    const dueDate = new Date('{{ assignment.due_date.isoformat() if assignment.due_date else "" }}');
+    
+    if (dueDate && dueDate > now) {
+        const timeDiff = dueDate - now;
+        const daysLeft = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        
+        // Update countdown if element exists
+        const countdownElement = document.querySelector('[data-countdown]');
+        if (countdownElement) {
+            countdownElement.textContent = daysLeft;
+        }
+    }
+}, 60000); // Update every minute
+</script>
+{% endblock %}

@@ -1,0 +1,733 @@
+{% extends "content_base.html" %}
+
+{% block title %}Fee Analytics Dashboard{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Fee Analytics Dashboard{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="refreshAnalytics()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="exportAnalytics()">
+        <i class="fas fa-download"></i> Export
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('school_admin.fee_management') }}'">
+        <i class="fas fa-arrow-left"></i> Back to Fee Management
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Analytics Dashboard Styles */
+.analytics-container {
+    display: grid;
+    gap: var(--spacing-xl);
+}
+
+.analytics-header {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.kpi-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.kpi-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+}
+
+.kpi-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.8rem;
+}
+
+.kpi-icon.revenue { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.kpi-icon.outstanding { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.kpi-icon.collection-rate { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.kpi-icon.transactions { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+.kpi-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    line-height: 1;
+}
+
+.kpi-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-md);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kpi-trend {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.kpi-trend.positive { color: var(--accent-green); }
+.kpi-trend.negative { color: var(--accent-red); }
+.kpi-trend.neutral { color: var(--text-muted); }
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.chart-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+.chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chart-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.chart-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+.payment-modes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.payment-mode-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.payment-mode-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.mode-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-md);
+    color: white;
+    font-size: 1.5rem;
+}
+
+.mode-icon.cash { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.mode-icon.online { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.mode-icon.cheque { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.mode-icon.bank { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+.mode-amount {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.mode-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.mode-count {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.class-performance-table {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+.performance-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.performance-table th,
+.performance-table td {
+    padding: var(--spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.performance-table th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+    position: sticky;
+    top: 0;
+}
+
+.performance-table tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .analytics-header {
+        grid-template-columns: 1fr;
+    }
+    
+    .payment-modes-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .kpi-value {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .payment-modes-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<div class="analytics-container">
+    <!-- KPI Cards -->
+    <div class="analytics-header">
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon revenue">
+                    <i class="fas fa-coins"></i>
+                </div>
+            </div>
+            <div class="kpi-value" id="totalRevenue">₹0</div>
+            <div class="kpi-label">Total Revenue</div>
+            <div class="kpi-trend positive" id="revenueTrend">
+                <i class="fas fa-arrow-up"></i>
+                <span>+12.5% from last month</span>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon outstanding">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+            </div>
+            <div class="kpi-value" id="totalOutstanding">₹0</div>
+            <div class="kpi-label">Outstanding Dues</div>
+            <div class="kpi-trend negative" id="outstandingTrend">
+                <i class="fas fa-arrow-down"></i>
+                <span>-5.2% from last month</span>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon collection-rate">
+                    <i class="fas fa-percentage"></i>
+                </div>
+            </div>
+            <div class="kpi-value" id="collectionRate">0%</div>
+            <div class="kpi-label">Collection Rate</div>
+            <div class="kpi-trend positive" id="collectionTrend">
+                <i class="fas fa-check-circle"></i>
+                <span>Excellent</span>
+            </div>
+        </div>
+        
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon transactions">
+                    <i class="fas fa-receipt"></i>
+                </div>
+            </div>
+            <div class="kpi-value" id="totalTransactions">0</div>
+            <div class="kpi-label">Total Transactions</div>
+            <div class="kpi-trend positive" id="transactionsTrend">
+                <i class="fas fa-arrow-up"></i>
+                <span>+8.3% from last month</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Section -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <i class="fas fa-chart-line"></i>
+                    Monthly Collection Trend
+                </div>
+                <div class="chart-controls">
+                    <select class="form-select" id="trendPeriod" onchange="updateTrendChart()">
+                        <option value="6">Last 6 Months</option>
+                        <option value="12" selected>Last 12 Months</option>
+                        <option value="24">Last 24 Months</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="collectionTrendChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">
+                    <i class="fas fa-chart-pie"></i>
+                    Collection vs Outstanding
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="collectionPieChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Payment Modes Breakdown -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div class="chart-title">
+                <i class="fas fa-credit-card"></i>
+                Payment Modes Breakdown
+            </div>
+        </div>
+        <div class="payment-modes-grid" id="paymentModesGrid">
+            <!-- Payment mode cards will be populated by JavaScript -->
+        </div>
+    </div>
+    
+    <!-- Class-wise Performance -->
+    <div class="class-performance-table">
+        <div class="chart-header" style="padding: var(--spacing-xl); margin-bottom: 0;">
+            <div class="chart-title">
+                <i class="fas fa-graduation-cap"></i>
+                Class-wise Fee Collection Performance
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="performance-table">
+                <thead>
+                    <tr>
+                        <th>Class</th>
+                        <th>Students</th>
+                        <th>Expected</th>
+                        <th>Collected</th>
+                        <th>Outstanding</th>
+                        <th>Progress</th>
+                        <th>Rate</th>
+                    </tr>
+                </thead>
+                <tbody id="classPerformanceBody">
+                    <!-- Class performance data will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let collectionTrendChart;
+let collectionPieChart;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadAnalyticsData();
+});
+
+function loadAnalyticsData() {
+    fetch('/api/fees/analytics')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateKPIs(data.analytics);
+                updateCharts(data.analytics);
+                updatePaymentModes(data.analytics.payment_modes);
+                updateClassPerformance(data.analytics.class_wise);
+            } else {
+                showNotification('Error loading analytics: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Failed to load analytics data', 'error');
+        });
+}
+
+function updateKPIs(analytics) {
+    document.getElementById('totalRevenue').textContent = `₹${formatNumber(analytics.total_collected)}`;
+    document.getElementById('totalOutstanding').textContent = `₹${formatNumber(analytics.total_outstanding)}`;
+    document.getElementById('collectionRate').textContent = `${analytics.collection_rate}%`;
+    document.getElementById('totalTransactions').textContent = formatNumber(analytics.total_transactions || 0);
+    
+    // Update trend indicators
+    updateTrendIndicator('collectionTrend', analytics.collection_rate >= 80);
+}
+
+function updateTrendIndicator(elementId, isPositive) {
+    const element = document.getElementById(elementId);
+    if (isPositive) {
+        element.className = 'kpi-trend positive';
+        element.innerHTML = '<i class="fas fa-arrow-up"></i><span>Good Performance</span>';
+    } else {
+        element.className = 'kpi-trend negative';
+        element.innerHTML = '<i class="fas fa-arrow-down"></i><span>Needs Attention</span>';
+    }
+}
+
+function updateCharts(analytics) {
+    // Collection Trend Chart
+    const trendCtx = document.getElementById('collectionTrendChart').getContext('2d');
+    
+    if (collectionTrendChart) {
+        collectionTrendChart.destroy();
+    }
+    
+    const monthlyData = analytics.monthly_trend || [];
+    const labels = monthlyData.map(item => `${getMonthName(item.month)} ${item.year}`);
+    const amounts = monthlyData.map(item => item.amount);
+    
+    collectionTrendChart = new Chart(trendCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Collection Amount',
+                data: amounts,
+                borderColor: '#FF6F00',
+                backgroundColor: 'rgba(255, 111, 0, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₹' + formatNumber(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Collection Pie Chart
+    const pieCtx = document.getElementById('collectionPieChart').getContext('2d');
+    
+    if (collectionPieChart) {
+        collectionPieChart.destroy();
+    }
+    
+    collectionPieChart = new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Collected', 'Outstanding'],
+            datasets: [{
+                data: [analytics.total_collected, analytics.total_outstanding],
+                backgroundColor: ['#22c55e', '#ef4444'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function updatePaymentModes(paymentModes) {
+    const container = document.getElementById('paymentModesGrid');
+    container.innerHTML = '';
+    
+    const modeIcons = {
+        'cash': 'fas fa-money-bill',
+        'online': 'fas fa-credit-card',
+        'cheque': 'fas fa-check',
+        'bank_transfer': 'fas fa-university'
+    };
+    
+    paymentModes.forEach(mode => {
+        const card = document.createElement('div');
+        card.className = 'payment-mode-card';
+        card.innerHTML = `
+            <div class="mode-icon ${mode.mode}">
+                <i class="${modeIcons[mode.mode] || 'fas fa-money-bill'}"></i>
+            </div>
+            <div class="mode-amount">₹${formatNumber(mode.amount)}</div>
+            <div class="mode-label">${mode.mode.replace('_', ' ').toUpperCase()}</div>
+            <div class="mode-count">${mode.count} transactions</div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+function updateClassPerformance(classWise) {
+    const tbody = document.getElementById('classPerformanceBody');
+    tbody.innerHTML = '';
+    
+    classWise.forEach(classData => {
+        const row = document.createElement('tr');
+        const collectionRate = classData.collection_rate || 0;
+        
+        row.innerHTML = `
+            <td><strong>${classData.class_name}</strong></td>
+            <td>${classData.student_count}</td>
+            <td>₹${formatNumber(classData.total_expected)}</td>
+            <td>₹${formatNumber(classData.total_collected)}</td>
+            <td>₹${formatNumber(classData.total_expected - classData.total_collected)}</td>
+            <td>
+                <div class="progress-bar-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${collectionRate}%"></div>
+                    </div>
+                    <span class="progress-text">${collectionRate.toFixed(1)}%</span>
+                </div>
+            </td>
+            <td>
+                <span class="status-badge ${collectionRate >= 80 ? 'paid' : collectionRate >= 50 ? 'partial' : 'overdue'}">
+                    ${collectionRate >= 80 ? 'Excellent' : collectionRate >= 50 ? 'Good' : 'Poor'}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function updateTrendChart() {
+    // Reload data with new period
+    loadAnalyticsData();
+}
+
+function refreshAnalytics() {
+    showNotification('Refreshing analytics...', 'info');
+    loadAnalyticsData();
+}
+
+function exportAnalytics() {
+    window.location.href = '/api/fees/export/analytics';
+}
+
+// Utility functions
+function formatNumber(num) {
+    if (num >= 10000000) {
+        return (num / 10000000).toFixed(1) + 'Cr';
+    } else if (num >= 100000) {
+        return (num / 100000).toFixed(1) + 'L';
+    } else if (num >= 1000) {
+        return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toLocaleString('en-IN');
+}
+
+function getMonthName(monthNum) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[monthNum - 1];
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

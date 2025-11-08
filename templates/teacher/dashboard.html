@@ -1,0 +1,270 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Teacher Dashboard - School Management System{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li class="active">
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Teacher Dashboard{% endblock %}
+
+{% block dashboard_content %}
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ assigned_classes|length if assigned_classes else 0 }}</h3>
+            <p>Assigned Classes</p>
+            <small>Active Classes</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-user-graduate"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ total_students if total_students else 0 }}</h3>
+            <p>Total Students</p>
+            <small>All Classes</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-tasks"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ recent_assignments|length if recent_assignments else 0 }}</h3>
+            <p>Recent Assignments</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ today_attendance|length if today_attendance else 0 }}</h3>
+            <p>Classes Today</p>
+            <small>Attendance Due</small>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Grid -->
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-check"></i> Today's Attendance</h3>
+            <a href="{{ url_for('teacher.attendance') }}" class="btn btn-primary btn-sm">Mark Attendance</a>
+        </div>
+        <div class="card-content">
+            {% if today_attendance %}
+                <div class="list-container">
+                    {% for item in today_attendance %}
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">{{ item.class.get_display_name() }}</div>
+                                <div class="list-item-meta">{{ item.total }} students</div>
+                            </div>
+                            <div class="list-item-actions">
+                                {% if item.marked == item.total %}
+                                    <span class="status-badge completed">
+                                        <i class="fas fa-check-circle"></i> Complete
+                                    </span>
+                                {% elif item.marked > 0 %}
+                                    <span class="status-badge partial">
+                                        <i class="fas fa-clock"></i> {{ item.marked }}/{{ item.total }}
+                                    </span>
+                                {% else %}
+                                    <span class="status-badge pending">
+                                        <i class="fas fa-exclamation-circle"></i> Pending
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <p>No classes assigned</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-users"></i> My Classes</h3>
+            <a href="{{ url_for('teacher.classes') }}" class="btn btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-content">
+            {% if assigned_classes %}
+                <div class="list-container">
+                    {% for class_info in assigned_classes %}
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">{{ class_info.get_display_name() }}</div>
+                                <div class="list-item-meta">{{ class_info.students|length }} students</div>
+                            </div>
+                            <div class="list-item-actions">
+                                <a href="{{ url_for('teacher.attendance') }}?class_id={{ class_info.id }}" 
+                                   class="btn btn-sm btn-outline">Attendance</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-chalkboard"></i>
+                    <p>No classes assigned</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-tasks"></i> Recent Assignments</h3>
+            <a href="{{ url_for('teacher.create_assignment') }}" class="btn btn-primary btn-sm">Create New</a>
+        </div>
+        <div class="card-content">
+            {% if recent_assignments %}
+                <div class="list-container">
+                    {% for assignment in recent_assignments %}
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">{{ assignment.title }}</div>
+                                <div class="list-item-meta">
+                                    <span class="badge badge-info">{{ assignment.class_info.get_display_name() }}</span>
+                                    {% if assignment.subject %}
+                                        <span class="badge badge-secondary">{{ assignment.subject.name }}</span>
+                                    {% endif %}
+                                    <span>Assigned: {{ assignment.assigned_date.strftime('%d %b %Y') }}</span>
+                                    {% if assignment.due_date %}
+                                        <span>Due: {{ assignment.due_date.strftime('%d %b %Y') }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="list-item-actions">
+                                <a href="{{ url_for('teacher.view_assignment', assignment_id=assignment.id) }}" 
+                                   class="btn btn-sm btn-outline">View</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>No assignments created</p>
+                    <a href="{{ url_for('teacher.create_assignment') }}" class="btn btn-primary">Create Assignment</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Quick Info</h3>
+        </div>
+        <div class="card-content">
+            {% if teacher %}
+                <div class="list-container">
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Employee ID</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.employee_id }}</span>
+                        </div>
+                    </div>
+                    {% if teacher.designation %}
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Designation</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.designation }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if teacher.department %}
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Department</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.department }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Experience</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.experience_years }} years</span>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-user-circle"></i>
+                    <p>No teacher information available</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

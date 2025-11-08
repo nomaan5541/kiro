@@ -1,0 +1,557 @@
+{% extends "content_base.html" %}
+
+{% block title %}Class Profile - {{ class_obj.get_display_name() }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Class Profile{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('school_admin.edit_class', class_id=class_obj.id) }}'">
+        <i class="fas fa-edit"></i> Edit Class
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="window.location.href='{{ url_for('school_admin.promote_class', class_id=class_obj.id) }}'">
+        <i class="fas fa-level-up-alt"></i> Promote Students
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i> Back to Classes
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Class Profile Styles */
+.class-header {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+}
+
+.class-name {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.class-details {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.class-detail {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: var(--text-secondary);
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    margin: 0 auto var(--spacing-md);
+}
+
+.stat-icon.total { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.stat-icon.male { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+.stat-icon.female { background: linear-gradient(135deg, #ec4899, #db2777); }
+.stat-icon.active { background: linear-gradient(135deg, #22c55e, #16a34a); }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: var(--spacing-xl);
+}
+
+.students-section {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+.class-info-section {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+    height: fit-content;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--accent-orange);
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-green));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.students-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: var(--spacing-md);
+}
+
+.students-table th,
+.students-table td {
+    padding: var(--spacing-sm);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.students-table th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.students-table td {
+    color: var(--text-primary);
+}
+
+.student-row:hover {
+    background: var(--bg-secondary);
+}
+
+.student-name {
+    font-weight: 500;
+}
+
+.roll-number {
+    font-family: 'Fira Code', monospace;
+    background: var(--bg-secondary);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.status-badge.inactive {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border-left: 3px solid var(--accent-orange);
+}
+
+.info-label {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.info-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.teacher-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    margin-top: var(--spacing-md);
+}
+
+.teacher-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-green));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.teacher-details {
+    flex: 1;
+}
+
+.teacher-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.teacher-role {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .class-details {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .students-table {
+        font-size: 0.875rem;
+    }
+    
+    .students-table th,
+    .students-table td {
+        padding: var(--spacing-xs);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<!-- Class Header -->
+<div class="class-header">
+    <div class="class-name">{{ class_obj.get_display_name() }}</div>
+    <div class="class-details">
+        <div class="class-detail">
+            <i class="fas fa-calendar"></i>
+            <span>{{ class_obj.academic_year or 'Current Year' }}</span>
+        </div>
+        {% if class_obj.room_number %}
+        <div class="class-detail">
+            <i class="fas fa-door-open"></i>
+            <span>Room {{ class_obj.room_number }}</span>
+        </div>
+        {% endif %}
+        {% if class_obj.capacity %}
+        <div class="class-detail">
+            <i class="fas fa-users"></i>
+            <span>Capacity: {{ class_obj.capacity }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon total">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-value">{{ class_stats.total_students }}</div>
+        <div class="stat-label">Total Students</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon male">
+            <i class="fas fa-male"></i>
+        </div>
+        <div class="stat-value">{{ class_stats.male_students }}</div>
+        <div class="stat-label">Male Students</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon female">
+            <i class="fas fa-female"></i>
+        </div>
+        <div class="stat-value">{{ class_stats.female_students }}</div>
+        <div class="stat-label">Female Students</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon active">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-value">{{ class_stats.active_students }}</div>
+        <div class="stat-label">Active Students</div>
+    </div>
+</div>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Students List -->
+    <div class="students-section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <div class="section-title">Students List</div>
+        </div>
+        
+        {% if students %}
+            <table class="students-table">
+                <thead>
+                    <tr>
+                        <th>Roll No.</th>
+                        <th>Name</th>
+                        <th>Gender</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                        <tr class="student-row">
+                            <td>
+                                <span class="roll-number">{{ student.roll_number or 'N/A' }}</span>
+                            </td>
+                            <td>
+                                <div class="student-name">{{ student.name }}</div>
+                            </td>
+                            <td>
+                                {% if student.gender %}
+                                    <i class="fas fa-{{ 'male' if student.gender.value == 'male' else 'female' }}"></i>
+                                    {{ student.gender.value.title() }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-badge {{ student.status.value if student.status else 'active' }}">
+                                    <i class="fas fa-circle"></i>
+                                    {{ student.status.value.title() if student.status else 'Active' }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('school_admin.student_profile', student_id=student.id) }}" 
+                                   class="btn btn-sm btn-outline">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted">No students enrolled in this class yet.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Class Information -->
+    <div class="class-info-section">
+        <div class="section-header">
+            <div class="section-icon">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="section-title">Class Information</div>
+        </div>
+        
+        <div class="info-item">
+            <span class="info-label">Class Name</span>
+            <span class="info-value">{{ class_obj.class_name }}</span>
+        </div>
+        
+        <div class="info-item">
+            <span class="info-label">Section</span>
+            <span class="info-value">{{ class_obj.section or 'N/A' }}</span>
+        </div>
+        
+        <div class="info-item">
+            <span class="info-label">Academic Year</span>
+            <span class="info-value">{{ class_obj.academic_year or 'Current' }}</span>
+        </div>
+        
+        {% if class_obj.room_number %}
+        <div class="info-item">
+            <span class="info-label">Room Number</span>
+            <span class="info-value">{{ class_obj.room_number }}</span>
+        </div>
+        {% endif %}
+        
+        {% if class_obj.capacity %}
+        <div class="info-item">
+            <span class="info-label">Capacity</span>
+            <span class="info-value">{{ class_obj.capacity }} students</span>
+        </div>
+        {% endif %}
+        
+        <div class="info-item">
+            <span class="info-label">Created</span>
+            <span class="info-value">{{ class_obj.created_at.strftime('%d/%m/%Y') if class_obj.created_at else 'N/A' }}</span>
+        </div>
+        
+        <!-- Class Teacher -->
+        {% if class_teacher %}
+            <div class="section-header" style="margin-top: var(--spacing-lg);">
+                <div class="section-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="section-title">Class Teacher</div>
+            </div>
+            
+            <div class="teacher-info">
+                <div class="teacher-avatar">
+                    {{ class_teacher.name[0].upper() }}
+                </div>
+                <div class="teacher-details">
+                    <div class="teacher-name">{{ class_teacher.name }}</div>
+                    <div class="teacher-role">Class Teacher</div>
+                </div>
+            </div>
+        {% else %}
+            <div class="section-header" style="margin-top: var(--spacing-lg);">
+                <div class="section-icon">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="section-title">Class Teacher</div>
+            </div>
+            <p class="text-muted">No class teacher assigned</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

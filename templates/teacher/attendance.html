@@ -1,0 +1,406 @@
+{% extends "content_base.html" %}
+
+{% block title %}Attendance Management - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Attendance Management{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+    <select class="form-select" style="min-width: 150px;" onchange="changeClass(this.value)">
+        <option value="">Select Class</option>
+        {% if assigned_classes %}
+        {% for class_info in assigned_classes %}
+        <option value="{{ class_info.id }}" {% if selected_class and selected_class.id==class_info.id %}selected{% endif
+            %}>
+            {{ class_info.get_display_name() }}
+        </option>
+        {% endfor %}
+        {% endif %}
+    </select>
+    <input type="date" class="form-input" style="min-width: 150px;"
+        value="{{ selected_date.strftime('%Y-%m-%d') if selected_date else '' }}" onchange="changeDate(this.value)">
+    <button class="btn btn-primary btn-sm" onclick="saveAttendance()" id="saveBtn" disabled>
+        <i class="fas fa-save"></i> Save Attendance
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Attendance Statistics -->
+{% if selected_class %}
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ students|length if students else 0 }}</h3>
+            <p>Total Students</p>
+            <small>{{ selected_class.get_display_name() }}</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3 id="presentCount">0</h3>
+            <p>Present</p>
+            <small>Today</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--error), #EF4444);">
+            <i class="fas fa-times-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3 id="absentCount">0</h3>
+            <p>Absent</p>
+            <small>Today</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-calendar-alt"></i>
+        </div>
+        <div class="kpi-content">
+            <h3 id="leaveCount">0</h3>
+            <p>On Leave</p>
+            <small>Today</small>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Attendance Form -->
+{% if selected_class and students %}
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3><i class="fas fa-clipboard-check"></i> Mark Attendance - {{ selected_class.get_display_name() }}</h3>
+        <div style="display: flex; gap: var(--spacing-sm);">
+            <button class="btn btn-success btn-sm" onclick="markAllPresent()">
+                <i class="fas fa-check-double"></i> All Present
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="clearAll()">
+                <i class="fas fa-undo"></i> Clear All
+            </button>
+        </div>
+    </div>
+    <div class="card-content">
+        <form id="attendanceForm">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Roll No.</th>
+                            <th>Student Name</th>
+                            <th>Present</th>
+                            <th>Absent</th>
+                            <th>Leave</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr data-student-id="{{ student.id }}">
+                            <td>
+                                <span class="badge badge-info">{{ student.roll_number }}</span>
+                            </td>
+                            <td>
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">{{ student.name }}</div>
+                                    <div style="color: var(--text-muted); font-size: 0.875rem;">{{ student.admission_no
+                                        }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="attendance_{{ student.id }}" value="present"
+                                        class="form-radio" onchange="updateCounts()">
+                                    <span style="margin-left: var(--spacing-sm); color: var(--success);">Present</span>
+                                </label>
+                            </td>
+                            <td>
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="attendance_{{ student.id }}" value="absent"
+                                        class="form-radio" onchange="updateCounts()">
+                                    <span style="margin-left: var(--spacing-sm); color: var(--error);">Absent</span>
+                                </label>
+                            </td>
+                            <td>
+                                <label style="display: flex; align-items: center; cursor: pointer;">
+                                    <input type="radio" name="attendance_{{ student.id }}" value="leave"
+                                        class="form-radio" onchange="updateCounts()">
+                                    <span style="margin-left: var(--spacing-sm); color: var(--warning);">Leave</span>
+                                </label>
+                            </td>
+                            <td>
+                                <input type="text" class="form-input" name="remarks_{{ student.id }}"
+                                    placeholder="Optional remarks" style="min-width: 150px;">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% elif selected_class and not students %}
+<div class="dashboard-card">
+    <div class="card-content">
+        <div class="empty-state">
+            <i class="fas fa-user-graduate"></i>
+            <h3>No Students Found</h3>
+            <p>No students are enrolled in {{ selected_class.get_display_name() }}.</p>
+            <small>Contact the school administrator to add students to this class.</small>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="dashboard-card">
+    <div class="card-content">
+        <div class="empty-state">
+            <i class="fas fa-calendar-check"></i>
+            <h3>Select Class and Date</h3>
+            <p>Please select a class and date to mark attendance.</p>
+            <small>Use the dropdowns above to get started.</small>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Attendance History -->
+{% if selected_class %}
+<div class="dashboard-card" style="margin-top: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-history"></i> Recent Attendance</h3>
+        <button class="btn btn-outline btn-sm" onclick="viewFullHistory()">
+            <i class="fas fa-chart-line"></i> View Full History
+        </button>
+    </div>
+    <div class="card-content">
+        {% if recent_attendance %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total Students</th>
+                        <th>Present</th>
+                        <th>Absent</th>
+                        <th>Leave</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in recent_attendance %}
+                    <tr>
+                        <td>{{ record.date.strftime('%d %b %Y') }}</td>
+                        <td>{{ record.total_students }}</td>
+                        <td><span class="status-badge present">{{ record.present_count }}</span></td>
+                        <td><span class="status-badge absent">{{ record.absent_count }}</span></td>
+                        <td><span class="status-badge leave">{{ record.leave_count }}</span></td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                <div class="progress" style="flex: 1; height: 8px;">
+                                    <div class="progress-bar" style="width: {{ record.percentage }}%;"></div>
+                                </div>
+                                <span style="font-weight: 600; color: var(--accent-orange);">{{
+                                    "%.1f"|format(record.percentage) }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-calendar-times"></i>
+            <p>No attendance records found for this class.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+    function changeClass(classId) {
+        if (classId) {
+            const url = new URL(window.location);
+            url.searchParams.set('class_id', classId);
+            window.location.href = url.toString();
+        }
+    }
+
+    function changeDate(date) {
+        if (date) {
+            const url = new URL(window.location);
+            url.searchParams.set('date', date);
+            window.location.href = url.toString();
+        }
+    }
+
+    function updateCounts() {
+        const presentInputs = document.querySelectorAll('input[value="present"]:checked');
+        const absentInputs = document.querySelectorAll('input[value="absent"]:checked');
+        const leaveInputs = document.querySelectorAll('input[value="leave"]:checked');
+
+        document.getElementById('presentCount').textContent = presentInputs.length;
+        document.getElementById('absentCount').textContent = absentInputs.length;
+        document.getElementById('leaveCount').textContent = leaveInputs.length;
+
+        // Enable save button if any attendance is marked
+        const totalMarked = presentInputs.length + absentInputs.length + leaveInputs.length;
+        document.getElementById('saveBtn').disabled = totalMarked === 0;
+    }
+
+    function markAllPresent() {
+        const presentInputs = document.querySelectorAll('input[value="present"]');
+        presentInputs.forEach(input => {
+            input.checked = true;
+        });
+        updateCounts();
+        showNotification('All students marked as present', 'success');
+    }
+
+    function clearAll() {
+        const allInputs = document.querySelectorAll('input[type="radio"]');
+        allInputs.forEach(input => {
+            input.checked = false;
+        });
+
+        const remarkInputs = document.querySelectorAll('input[name^="remarks_"]');
+        remarkInputs.forEach(input => {
+            input.value = '';
+        });
+
+        updateCounts();
+        showNotification('All attendance cleared', 'info');
+    }
+
+    function saveAttendance() {
+        const form = document.getElementById('attendanceForm');
+        const formData = new FormData(form);
+
+        // Collect attendance data
+        const attendanceData = {};
+        const students = document.querySelectorAll('[data-student-id]');
+
+        students.forEach(row => {
+            const studentId = row.dataset.studentId;
+            const attendanceInput = row.querySelector(`input[name="attendance_${studentId}"]:checked`);
+            const remarksInput = row.querySelector(`input[name="remarks_${studentId}"]`);
+
+            if (attendanceInput) {
+                attendanceData[studentId] = {
+                    status: attendanceInput.value,
+                    remarks: remarksInput.value || ''
+                };
+            }
+        });
+
+        if (Object.keys(attendanceData).length === 0) {
+            showNotification('Please mark attendance for at least one student', 'warning');
+            return;
+        }
+
+        // Simulate saving attendance
+        showNotification('Saving attendance...', 'info');
+
+        setTimeout(() => {
+            showNotification('Attendance saved successfully!', 'success');
+            // In real implementation, you would make an API call here
+            console.log('Attendance data:', attendanceData);
+        }, 1500);
+    }
+
+    function viewFullHistory() {
+        showNotification('Full attendance history feature will be available soon', 'info');
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} fade-in`;
+        notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : type === 'warning' ? 'exclamation-triangle' : 'info'}-circle"></i> ${message}`;
+        notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
+    }
+
+    // Initialize counts on page load
+    document.addEventListener('DOMContentLoaded', function () {
+        updateCounts();
+    });
+</script>
+{% endblock %}

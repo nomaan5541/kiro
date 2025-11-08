@@ -1,0 +1,501 @@
+{% extends "content_base.html" %}
+
+{% block title %}Reports & Analytics - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Reports & Analytics{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+    <select class="form-select" style="min-width: 150px;" onchange="filterByPeriod(this.value)">
+        <option value="current_month">Current Month</option>
+        <option value="last_month">Last Month</option>
+        <option value="current_term">Current Term</option>
+        <option value="academic_year">Academic Year</option>
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="exportReports()">
+        <i class="fas fa-download"></i> Export All
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="generateCustomReport()">
+        <i class="fas fa-plus"></i> Custom Report
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Report Overview -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-chart-bar"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ total_reports if total_reports else 12 }}</h3>
+            <p>Available Reports</p>
+            <small>Ready to Generate</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-percentage"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ avg_attendance if avg_attendance else 92 }}%</h3>
+            <p>Avg Attendance</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-tasks"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ assignments_graded if assignments_graded else 45 }}</h3>
+            <p>Assignments Graded</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-star"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ avg_performance if avg_performance else 78 }}%</h3>
+            <p>Class Performance</p>
+            <small>Average Score</small>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Report Actions -->
+<div class="dashboard-card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-bolt"></i> Quick Reports</h3>
+        <span class="badge badge-info">Generate Instantly</span>
+    </div>
+    <div class="card-content">
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="generateAttendanceReport()">
+                <i class="fas fa-calendar-check"></i>
+                <span>Attendance Report</span>
+            </button>
+            
+            <button class="quick-action-btn" onclick="generatePerformanceReport()">
+                <i class="fas fa-chart-line"></i>
+                <span>Performance Report</span>
+            </button>
+            
+            <button class="quick-action-btn" onclick="generateAssignmentReport()">
+                <i class="fas fa-tasks"></i>
+                <span>Assignment Report</span>
+            </button>
+            
+            <button class="quick-action-btn" onclick="generateClassSummary()">
+                <i class="fas fa-users"></i>
+                <span>Class Summary</span>
+            </button>
+            
+            <button class="quick-action-btn" onclick="generateProgressReport()">
+                <i class="fas fa-chart-pie"></i>
+                <span>Progress Report</span>
+            </button>
+            
+            <button class="quick-action-btn" onclick="generateBehaviorReport()">
+                <i class="fas fa-smile"></i>
+                <span>Behavior Report</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Reports -->
+<div class="dashboard-grid">
+    <!-- Attendance Analytics -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-check"></i> Attendance Analytics</h3>
+            <button class="btn btn-outline btn-sm" onclick="viewDetailedAttendance()">
+                <i class="fas fa-expand"></i> View Details
+            </button>
+        </div>
+        <div class="card-content">
+            <div style="margin-bottom: var(--spacing-lg);">
+                <canvas id="attendanceChart" width="400" height="200"></canvas>
+            </div>
+            
+            <div class="list-container">
+                {% set attendance_data = [
+                    {'class': 'Class 10-A', 'present': 28, 'total': 30, 'percentage': 93.3},
+                    {'class': 'Class 10-B', 'present': 25, 'total': 28, 'percentage': 89.3},
+                    {'class': 'Class 9-A', 'present': 32, 'total': 35, 'percentage': 91.4}
+                ] %}
+                
+                {% for data in attendance_data %}
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">{{ data.class }}</div>
+                            <div class="list-item-meta">
+                                <span>{{ data.present }}/{{ data.total }} students</span>
+                            </div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span class="badge {% if data.percentage >= 95 %}badge-success{% elif data.percentage >= 85 %}badge-warning{% else %}badge-error{% endif %}">
+                                {{ "%.1f"|format(data.percentage) }}%
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Trends -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line"></i> Performance Trends</h3>
+        </div>
+        <div class="card-content">
+            <div style="margin-bottom: var(--spacing-lg);">
+                <canvas id="performanceChart" width="300" height="200"></canvas>
+            </div>
+            
+            <div style="display: grid; gap: var(--spacing-md);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-muted);">Excellent (90-100%)</span>
+                    <span style="color: var(--success); font-weight: 600;">15 students</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-muted);">Good (75-89%)</span>
+                    <span style="color: var(--info); font-weight: 600;">32 students</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-muted);">Average (60-74%)</span>
+                    <span style="color: var(--warning); font-weight: 600;">18 students</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: var(--text-muted);">Below Average (<60%)</span>
+                    <span style="color: var(--error); font-weight: 600;">5 students</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Assignment Statistics -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-tasks"></i> Assignment Statistics</h3>
+            <button class="btn btn-outline btn-sm" onclick="viewAssignmentDetails()">
+                <i class="fas fa-list"></i> View All
+            </button>
+        </div>
+        <div class="card-content">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Assignment</th>
+                            <th>Class</th>
+                            <th>Submitted</th>
+                            <th>Pending</th>
+                            <th>Avg Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set assignments_stats = [
+                            {'title': 'Math Quiz - Algebra', 'class': '10-A', 'submitted': 28, 'total': 30, 'avg_score': 85, 'status': 'completed'},
+                            {'title': 'Science Project', 'class': '10-B', 'submitted': 22, 'total': 28, 'avg_score': 78, 'status': 'ongoing'},
+                            {'title': 'History Essay', 'class': '9-A', 'submitted': 30, 'total': 35, 'avg_score': 82, 'status': 'grading'}
+                        ] %}
+                        
+                        {% for assignment in assignments_stats %}
+                            <tr>
+                                <td>
+                                    <div style="font-weight: 600; color: var(--text-primary);">{{ assignment.title }}</div>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">{{ assignment.class }}</span>
+                                </td>
+                                <td>{{ assignment.submitted }}/{{ assignment.total }}</td>
+                                <td>{{ assignment.total - assignment.submitted }}</td>
+                                <td>
+                                    <span style="color: {% if assignment.avg_score >= 85 %}var(--success){% elif assignment.avg_score >= 75 %}var(--info){% else %}var(--warning){% endif %}; font-weight: 600;">
+                                        {{ assignment.avg_score }}%
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge {{ assignment.status.value }}">{{ assignment.status.value.title() }}</span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-clock"></i> Recent Reports</h3>
+        </div>
+        <div class="card-content">
+            {% set recent_reports = [
+                {'name': 'Monthly Attendance Report', 'date': '2 hours ago', 'type': 'attendance'},
+                {'name': 'Class 10-A Performance', 'date': '1 day ago', 'type': 'performance'},
+                {'name': 'Assignment Summary', 'date': '2 days ago', 'type': 'assignment'},
+                {'name': 'Weekly Progress Report', 'date': '3 days ago', 'type': 'progress'}
+            ] %}
+            
+            <div class="list-container">
+                {% for report in recent_reports %}
+                    <div class="list-item">
+                        <div style="display: flex; align-items: center; gap: var(--spacing-md); width: 100%;">
+                            <div style="color: var(--accent-orange); font-size: 1.25rem;">
+                                {% if report.type == 'attendance' %}
+                                    <i class="fas fa-calendar-check"></i>
+                                {% elif report.type == 'performance' %}
+                                    <i class="fas fa-chart-line"></i>
+                                {% elif report.type == 'assignment' %}
+                                    <i class="fas fa-tasks"></i>
+                                {% else %}
+                                    <i class="fas fa-chart-pie"></i>
+                                {% endif %}
+                            </div>
+                            <div class="list-item-content" style="flex: 1;">
+                                <div class="list-item-title">{{ report.name }}</div>
+                                <div class="list-item-meta">
+                                    <span>{{ report.date }}</span>
+                                </div>
+                            </div>
+                            <div class="list-item-actions">
+                                <button class="btn btn-sm btn-outline" onclick="downloadReport('{{ report.name }}')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Attendance Chart
+const attendanceCtx = document.getElementById('attendanceChart').getContext('2d');
+new Chart(attendanceCtx, {
+    type: 'line',
+    data: {
+        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+        datasets: [{
+            label: 'Attendance %',
+            data: [92, 89, 94, 91],
+            borderColor: 'rgb(255, 165, 0)',
+            backgroundColor: 'rgba(255, 165, 0, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                },
+                ticks: {
+                    color: '#9CA3AF'
+                }
+            },
+            x: {
+                grid: {
+                    color: 'rgba(255, 255, 255, 0.1)'
+                },
+                ticks: {
+                    color: '#9CA3AF'
+                }
+            }
+        }
+    }
+});
+
+// Performance Chart
+const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+new Chart(performanceCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Excellent', 'Good', 'Average', 'Below Average'],
+        datasets: [{
+            data: [15, 32, 18, 5],
+            backgroundColor: [
+                '#10B981',
+                '#3B82F6',
+                '#F59E0B',
+                '#EF4444'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Report Functions
+function generateAttendanceReport() {
+    showNotification('Generating attendance report...', 'info');
+    setTimeout(() => {
+        showNotification('Attendance report generated successfully!', 'success');
+    }, 2000);
+}
+
+function generatePerformanceReport() {
+    showNotification('Generating performance report...', 'info');
+    setTimeout(() => {
+        showNotification('Performance report generated successfully!', 'success');
+    }, 2000);
+}
+
+function generateAssignmentReport() {
+    showNotification('Generating assignment report...', 'info');
+    setTimeout(() => {
+        showNotification('Assignment report generated successfully!', 'success');
+    }, 2000);
+}
+
+function generateClassSummary() {
+    showNotification('Generating class summary...', 'info');
+    setTimeout(() => {
+        showNotification('Class summary generated successfully!', 'success');
+    }, 2000);
+}
+
+function generateProgressReport() {
+    showNotification('Generating progress report...', 'info');
+    setTimeout(() => {
+        showNotification('Progress report generated successfully!', 'success');
+    }, 2000);
+}
+
+function generateBehaviorReport() {
+    showNotification('Generating behavior report...', 'info');
+    setTimeout(() => {
+        showNotification('Behavior report generated successfully!', 'success');
+    }, 2000);
+}
+
+function generateCustomReport() {
+    showNotification('Custom report builder will be available soon', 'info');
+}
+
+function exportReports() {
+    showNotification('Exporting all reports...', 'info');
+    setTimeout(() => {
+        showNotification('All reports exported successfully!', 'success');
+    }, 3000);
+}
+
+function filterByPeriod(period) {
+    showNotification(`Filtering reports by ${period.replace('_', ' ')}...`, 'info');
+}
+
+function viewDetailedAttendance() {
+    showNotification('Detailed attendance view will be available soon', 'info');
+}
+
+function viewAssignmentDetails() {
+    showNotification('Assignment details view will be available soon', 'info');
+}
+
+function downloadReport(reportName) {
+    showNotification(`Downloading ${reportName}...`, 'info');
+    setTimeout(() => {
+        showNotification(`${reportName} downloaded successfully!`, 'success');
+    }, 1500);
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

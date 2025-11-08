@@ -1,0 +1,255 @@
+{% extends "content_base.html" %}
+
+{% block title %}Super Admin Dashboard{% endblock %}
+
+{% block page_title %}Super Admin Dashboard{% endblock %}
+
+{% block page_description %}System-wide overview and management{% endblock %}
+
+{% block sidebar_menu %}
+<li class="active">
+    <a href="{{ url_for('super_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.schools') }}">
+        <i class="fas fa-school"></i> Schools
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.users') }}">
+        <i class="fas fa-users"></i> Users
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.activity_logs') }}">
+        <i class="fas fa-history"></i> Activity Logs
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('super_admin.register_school') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Add School
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- System KPI Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <div class="tactical-card text-center">
+            <div style="color: var(--accent-orange); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-school"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-orange);">{{ total_schools if total_schools else 0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Schools</p>
+            <small style="color: var(--text-muted);">Registered</small>
+        </div>
+
+        <div class="tactical-card text-center">
+            <div style="color: var(--success); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--success);">{{ active_subscriptions if active_subscriptions else 0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Active Schools</p>
+            <small style="color: var(--text-muted);">Currently Operating</small>
+        </div>
+
+        <div class="tactical-card text-center">
+            <div style="color: var(--warning); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--warning);">{{ expired_subscriptions if expired_subscriptions else 0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Expired</p>
+            <small style="color: var(--text-muted);">Need Renewal</small>
+        </div>
+
+        <div class="tactical-card text-center">
+            <div style="color: var(--error); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-ban"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--error);">{{ suspended_accounts if suspended_accounts else 0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Suspended</p>
+            <small style="color: var(--text-muted);">Accounts</small>
+        </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: var(--spacing-lg);">
+        <!-- Schools Overview -->
+        <div class="tactical-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <h3><i class="fas fa-school"></i> Recent Schools</h3>
+                <a href="{{ url_for('super_admin.schools') }}" class="btn btn-primary btn-sm">Manage Schools</a>
+            </div>
+            
+            {% if recent_schools %}
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    {% for school in recent_schools[:5] %}
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-sm); border: 1px solid var(--color-border); border-radius: var(--radius-md);">
+                            <div>
+                                <strong>{{ school.name }}</strong>
+                                <br><small class="text-muted">{{ school.email }}</small>
+                            </div>
+                            <div style="text-align: right;">
+                                {% if school.status.value == 'active' %}
+                                    <span class="badge badge-success">Active</span>
+                                {% elif school.status.value == 'suspended' %}
+                                    <span class="badge badge-error">Suspended</span>
+                                {% else %}
+                                    <span class="badge badge-warning">{{ school.status.value.title() }}</span>
+                                {% endif %}
+                                <br><small class="text-muted">{{ school.created_at.strftime('%Y-%m-%d') if school.created_at else 'N/A' }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                {% if recent_schools|length > 5 %}
+                    <div style="text-align: center; margin-top: var(--spacing-md);">
+                        <a href="{{ url_for('super_admin.schools') }}" class="btn btn-outline btn-sm">
+                            View All {{ recent_schools|length }} Schools
+                        </a>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-school" style="font-size: 3rem; color: var(--text-muted); margin-bottom: var(--spacing-md);"></i>
+                    <p>No schools registered</p>
+                    <a href="{{ url_for('super_admin.register_school') }}" class="btn btn-primary">Register First School</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-bolt"></i> Quick Actions
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md);">
+                <a href="{{ url_for('super_admin.register_school') }}" class="btn btn-outline" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-lg); text-decoration: none;">
+                    <i class="fas fa-plus" style="font-size: 1.5rem; margin-bottom: var(--spacing-sm);"></i>
+                    <span>Add School</span>
+                </a>
+                
+                <a href="{{ url_for('super_admin.users') }}" class="btn btn-outline" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-lg); text-decoration: none;">
+                    <i class="fas fa-users" style="font-size: 1.5rem; margin-bottom: var(--spacing-sm);"></i>
+                    <span>Manage Users</span>
+                </a>
+                
+                <a href="{{ url_for('super_admin.reports') }}" class="btn btn-outline" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-lg); text-decoration: none;">
+                    <i class="fas fa-chart-line" style="font-size: 1.5rem; margin-bottom: var(--spacing-sm);"></i>
+                    <span>View Reports</span>
+                </a>
+                
+                <a href="{{ url_for('super_admin.settings') }}" class="btn btn-outline" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-lg); text-decoration: none;">
+                    <i class="fas fa-cog" style="font-size: 1.5rem; margin-bottom: var(--spacing-sm);"></i>
+                    <span>System Settings</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- System Health -->
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-heartbeat"></i> System Health
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Database Status</span>
+                    <span class="badge badge-success">Online</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>System Uptime</span>
+                    <span class="badge badge-success">99.9%</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Active Sessions</span>
+                    <span class="badge badge-info">{{ (total_schools * 2) if total_schools else 0 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Storage Used</span>
+                    <span class="badge badge-warning">2.3 GB / 10 GB</span>
+                </div>
+                
+                <div style="margin-top: var(--spacing-md);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                        <span>CPU Usage</span>
+                        <span><strong>45%</strong></span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 45%;"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                        <span>Memory Usage</span>
+                        <span><strong>62%</strong></span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 62%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="tactical-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <h3><i class="fas fa-history"></i> Recent Activity</h3>
+                <a href="{{ url_for('super_admin.activity_logs') }}" class="btn btn-primary btn-sm">View All Logs</a>
+            </div>
+            
+            <div class="empty-state">
+                <i class="fas fa-history" style="font-size: 3rem; color: var(--text-muted); margin-bottom: var(--spacing-md);"></i>
+                <p>No recent activity</p>
+                <small class="text-muted">Activity logs will appear here</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--color-surface-variant);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    transition: width 0.3s ease;
+}
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--color-muted);
+}
+</style>
+{% endblock %}

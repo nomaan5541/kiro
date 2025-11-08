@@ -1,0 +1,347 @@
+{% extends "content_base.html" %}
+
+{% block title %}Register School - Super Admin{% endblock %}
+
+{% block page_title %}Register New School{% endblock %}
+
+{% block page_description %}Add a new school to the system{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('super_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.schools') }}">
+        <i class="fas fa-school"></i> Schools
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.users') }}">
+        <i class="fas fa-users"></i> Users
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.activity_logs') }}">
+        <i class="fas fa-history"></i> Activity Logs
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('super_admin.schools') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Schools
+    </a>
+    <button type="submit" form="registerSchoolForm" class="btn btn-primary btn-sm">
+        <i class="fas fa-save"></i> Register School
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+<div style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg); max-width: 800px; margin: 0 auto;">
+    <!-- School Information -->
+    <div class="tactical-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h3><i class="fas fa-school"></i> School Information</h3>
+            <span class="badge badge-info">Required Fields</span>
+        </div>
+        <div>
+            <form id="registerSchoolForm" method="POST">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label" for="school_name">School Name *</label>
+                        <input type="text" class="form-input" id="school_name" name="school_name" 
+                               placeholder="Enter school name" required>
+                        <small style="color: var(--text-muted);">Full official name of the school</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address *</label>
+                        <input type="email" class="form-input" id="email" name="email" 
+                               placeholder="admin@school.com" required>
+                        <small style="color: var(--text-muted);">Primary contact email</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="phone">Phone Number *</label>
+                        <input type="tel" class="form-input" id="phone" name="phone" 
+                               placeholder="Enter phone number" required>
+                        <small style="color: var(--text-muted);">Primary contact number</small>
+                    </div>
+                    
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label" for="address">Address</label>
+                        <textarea class="form-textarea" id="address" name="address" rows="3" 
+                                  placeholder="Enter complete school address"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Hidden submit button inside form as backup -->
+                <button type="submit" style="display: none;" id="hiddenSubmit">Submit</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Account Setup -->
+    <div class="tactical-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h3><i class="fas fa-user-shield"></i> Admin Account Setup</h3>
+            <span class="badge badge-warning">Secure Credentials</span>
+        </div>
+        <div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                <div class="form-group">
+                    <label class="form-label" for="admin_name">Admin Name *</label>
+                    <input type="text" class="form-input" id="admin_name" name="admin_name" 
+                           placeholder="Enter admin full name" required form="registerSchoolForm">
+                    <small style="color: var(--text-muted);">School administrator's name</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="admin_email">Admin Email *</label>
+                    <input type="email" class="form-input" id="admin_email" name="admin_email" 
+                           placeholder="admin@school.com" required form="registerSchoolForm">
+                    <small style="color: var(--text-muted);">Login email for admin</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Admin Password *</label>
+                    <input type="password" class="form-input" id="password" name="password" 
+                           placeholder="Enter secure password" required form="registerSchoolForm" minlength="8">
+                    <small style="color: var(--text-muted);">Minimum 8 characters</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="confirm_password">Confirm Password *</label>
+                    <input type="password" class="form-input" id="confirm_password" name="confirm_password" 
+                           placeholder="Confirm password" required form="registerSchoolForm" minlength="8">
+                    <small style="color: var(--text-muted);">Must match password</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription Details -->
+    <div class="tactical-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h3><i class="fas fa-calendar-alt"></i> Subscription Details</h3>
+            <span class="badge badge-success">1 Year Plan</span>
+        </div>
+        <div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg);">
+                <div class="form-group">
+                    <label class="form-label" for="subscription_start">Start Date *</label>
+                    <input type="date" class="form-input" id="subscription_start" name="subscription_start" 
+                           value="{{ today.strftime('%Y-%m-%d') }}" required form="registerSchoolForm">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="subscription_end">End Date *</label>
+                    <input type="date" class="form-input" id="subscription_end" name="subscription_end" 
+                           value="{{ one_year_later.strftime('%Y-%m-%d') if one_year_later else '' }}" required form="registerSchoolForm">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="subscription_fee">Subscription Fee</label>
+                    <input type="number" class="form-input" id="subscription_fee" name="subscription_fee" 
+                           placeholder="0" min="0" step="0.01" form="registerSchoolForm">
+                    <small style="color: var(--text-muted);">Annual fee (optional)</small>
+                </div>
+            </div>
+            
+            <div style="background: rgba(255, 111, 0, 0.1); border: 1px solid rgba(255, 111, 0, 0.3); border-radius: var(--radius-lg); padding: var(--spacing-md); margin-top: var(--spacing-lg);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-sm);">
+                    <i class="fas fa-info-circle" style="color: var(--accent-orange);"></i>
+                    <strong style="color: var(--text-primary);">Subscription Benefits</strong>
+                </div>
+                <ul style="color: var(--text-muted); font-size: 0.875rem; margin-left: var(--spacing-lg);">
+                    <li>Complete school management system access</li>
+                    <li>Unlimited students, teachers, and classes</li>
+                    <li>Advanced reporting and analytics</li>
+                    <li>24/7 technical support</li>
+                    <li>Regular system updates and backups</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Configuration -->
+    <div class="tactical-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h3><i class="fas fa-cogs"></i> System Configuration</h3>
+            <span class="badge badge-outline">Optional Settings</span>
+        </div>
+        <div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                <div class="form-group">
+                    <label class="form-label" for="timezone">Timezone</label>
+                    <select class="form-select" id="timezone" name="timezone" form="registerSchoolForm">
+                        <option value="Asia/Kolkata" selected>Asia/Kolkata (IST)</option>
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">America/New_York (EST)</option>
+                        <option value="Europe/London">Europe/London (GMT)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="academic_year">Academic Year</label>
+                    <input type="text" class="form-input" id="academic_year" name="academic_year" 
+                           placeholder="2024-25" value="2024-25" form="registerSchoolForm">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="max_students">Max Students</label>
+                    <input type="number" class="form-input" id="max_students" name="max_students" 
+                           placeholder="1000" min="1" max="10000" value="1000" form="registerSchoolForm">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="max_teachers">Max Teachers</label>
+                    <input type="number" class="form-input" id="max_teachers" name="max_teachers" 
+                           placeholder="100" min="1" max="1000" value="100" form="registerSchoolForm">
+                </div>
+            </div>
+            
+            <div style="margin-top: var(--spacing-lg);">
+                <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                    <input type="checkbox" name="setup_wizard" value="1" checked form="registerSchoolForm" style="accent-color: var(--accent-orange);">
+                    <span style="color: var(--text-primary);">Enable setup wizard for new school</span>
+                </label>
+                <small style="color: var(--text-muted); margin-left: var(--spacing-xl);">Guides admin through initial configuration</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submit Button Section -->
+    <div class="tactical-card" style="text-align: center;">
+        <div style="display: flex; gap: var(--spacing-md); justify-content: center;">
+            <a href="{{ url_for('super_admin.schools') }}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+            <button type="submit" form="registerSchoolForm" class="btn btn-primary">
+                <i class="fas fa-save"></i> Register School
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Auto-calculate end date when start date changes
+document.getElementById('subscription_start').addEventListener('change', function() {
+    const startDate = new Date(this.value);
+    if (startDate) {
+        const endDate = new Date(startDate);
+        endDate.setFullYear(endDate.getFullYear() + 1);
+        document.getElementById('subscription_end').value = endDate.toISOString().split('T')[0];
+    }
+});
+
+// Auto-fill admin email when school email changes
+document.getElementById('email').addEventListener('input', function() {
+    const adminEmailField = document.getElementById('admin_email');
+    if (!adminEmailField.value) {
+        adminEmailField.value = this.value;
+    }
+});
+
+// Password confirmation validation
+function validatePasswords() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const confirmField = document.getElementById('confirm_password');
+    
+    if (confirmPassword && password !== confirmPassword) {
+        confirmField.style.borderColor = 'var(--error)';
+        return false;
+    } else {
+        confirmField.style.borderColor = 'var(--bg-tertiary)';
+        return true;
+    }
+}
+
+document.getElementById('password').addEventListener('input', validatePasswords);
+document.getElementById('confirm_password').addEventListener('input', validatePasswords);
+
+// Form submission
+document.getElementById('registerSchoolForm').addEventListener('submit', function(e) {
+    // Validate passwords match
+    if (!validatePasswords()) {
+        e.preventDefault();
+        showNotification('Passwords do not match', 'error');
+        return;
+    }
+    
+    // Validate required fields
+    const requiredFields = ['school_name', 'email', 'phone', 'admin_name', 'admin_email', 'password', 'confirm_password', 'subscription_start', 'subscription_end'];
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        const input = this.querySelector(`[name="${field}"]`);
+        if (!input.value.trim()) {
+            input.style.borderColor = 'var(--error)';
+            isValid = false;
+        } else {
+            input.style.borderColor = 'var(--bg-tertiary)';
+        }
+    });
+    
+    if (!isValid) {
+        e.preventDefault();
+        showNotification('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    // If validation passes, show loading message and let form submit normally
+    showNotification('Registering school...', 'info');
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+function showComingSoon(featureName) {
+    showNotification(`${featureName} feature is coming soon!`, 'info');
+}
+</script>
+{% endblock %}

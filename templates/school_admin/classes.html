@@ -1,0 +1,256 @@
+{% extends "content_base.html" %}
+
+{% block title %}Classes - School Admin{% endblock %}
+
+{% block page_title %}Classes{% endblock %}
+
+{% block page_description %}Manage your school's classes and sections{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('school_admin.add_class') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Add Class
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Search and Filters -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-lg);">
+        <form method="GET" style="display: flex; gap: var(--spacing-md); align-items: end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label class="form-label">Search Classes</label>
+                <input type="text" name="search" value="{{ search }}" placeholder="Class name, section..."
+                    class="form-input">
+            </div>
+
+            <div style="min-width: 150px;">
+                <label class="form-label">Academic Year</label>
+                <select name="academic_year" class="form-select">
+                    <option value="">All Years</option>
+                    {% for year in academic_years %}
+                    <option value="{{ year }}" {% if academic_year_filter==year %}selected{% endif %}>
+                        {{ year }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div style="display: flex; gap: var(--spacing-xs);">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <button type="button" class="btn btn-outline" onclick="clearFilters()">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Classes List -->
+    {% if classes.items %}
+    <div class="tactical-card">
+        <div class="table-responsive">
+            <table class="tactical-table">
+                <thead>
+                    <tr>
+                        <th>Class</th>
+                        <th>Section</th>
+                        <th>Academic Year</th>
+                        <th>Students</th>
+                        <th>Capacity</th>
+                        <th>Class Teacher</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for class in classes.items %}
+                    <tr>
+                        <td>
+                            <strong>{{ class.class_name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge badge-outline">{{ class.section }}</span>
+                        </td>
+                        <td>{{ class.academic_year }}</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                                <span class="badge badge-primary">{{ class.student_count }}</span>
+                                {% if class.student_count >= class.capacity %}
+                                <i class="fas fa-exclamation-triangle text-warning" title="Class is full"></i>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{ class.capacity }}</td>
+                        <td>
+                            {% if class.class_teacher %}
+                            {{ class.class_teacher.name }}
+                            {% else %}
+                            <span class="text-muted">Not assigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: var(--spacing-xs);">
+                                <button class="btn btn-sm btn-primary" onclick="viewClass('{{ class.id }}')">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline" onclick="editClass('{{ class.id }}')">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info" onclick="manageSubjects('{{ class.id }}')">
+                                    <i class="fas fa-book"></i>
+                                </button>
+                            </div>
+
+
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if classes.pages > 1 %}
+        <div
+            style="display: flex; justify-content: center; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+            {% if classes.has_prev %}
+            <a href="{{ url_for('school_admin.classes', page=classes.prev_num, search=search, academic_year=academic_year_filter) }}"
+                class="btn btn-outline btn-sm">
+                <i class="fas fa-chevron-left"></i> Previous
+            </a>
+            {% endif %}
+
+            {% for page_num in classes.iter_pages() %}
+            {% if page_num %}
+            {% if page_num != classes.page %}
+            <a href="{{ url_for('school_admin.classes', page=page_num, search=search, academic_year=academic_year_filter) }}"
+                class="btn btn-outline btn-sm">
+                {{ page_num }}
+            </a>
+            {% else %}
+            <span class="btn btn-primary btn-sm">{{ page_num }}</span>
+            {% endif %}
+            {% else %}
+            <span>...</span>
+            {% endif %}
+            {% endfor %}
+
+            {% if classes.has_next %}
+            <a href="{{ url_for('school_admin.classes', page=classes.next_num, search=search, academic_year=academic_year_filter) }}"
+                class="btn btn-outline btn-sm">
+                Next <i class="fas fa-chevron-right"></i>
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="tactical-card text-center" style="padding: var(--spacing-xl);">
+        <i class="fas fa-school"
+            style="font-size: 3rem; color: var(--color-muted); margin-bottom: var(--spacing-md);"></i>
+        <h3>No Classes Found</h3>
+        <p>{% if search or academic_year_filter %}Try adjusting your filters{% else %}Start by adding your first class{%
+            endif %}</p>
+        {% if not search and not academic_year_filter %}
+        <a href="{{ url_for('school_admin.add_class') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add First Class
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Class Modal (placeholder) -->
+<div id="addClassModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Add New Class</h3>
+        <p>Class management functionality will be implemented soon.</p>
+        <div style="display: flex; gap: var(--spacing-sm); justify-content: end; margin-top: var(--spacing-lg);">
+            <button class="btn btn-outline" onclick="closeModal('addClassModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function clearFilters() {
+        window.location.href = '{{ url_for("school_admin.classes") }}';
+    }
+
+    function showAddClassModal() {
+        document.getElementById('addClassModal').style.display = 'flex';
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+
+    function viewClass(classId) {
+        window.location.href = `{{ url_for('school_admin.view_class', class_id=0) }}`.replace('0', classId);
+    }
+
+    function editClass(classId) {
+        window.location.href = `{{ url_for('school_admin.edit_class', class_id=0) }}`.replace('0', classId);
+    }
+
+    function manageSubjects(classId) {
+        // Placeholder for manage subjects functionality
+        alert('Manage subjects functionality will be implemented soon.');
+    }
+
+    // Close modal when clicking outside
+    window.onclick = function (event) {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

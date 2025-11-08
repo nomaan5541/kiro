@@ -1,0 +1,362 @@
+{% extends "form_base.html" %}
+
+{% block title %}Pay Fees - Student Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Pay Fees Online{% endblock %}
+
+{% block form_content %}
+<!-- Fee Summary -->
+<div class="dashboard-card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-receipt"></i> Fee Summary</h3>
+        <span class="badge badge-warning">Payment Due</span>
+    </div>
+    <div class="card-content">
+        {% if fee_status %}
+            <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: var(--spacing-lg);">
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--accent-orange); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                        ₹{{ "{:,.0f}".format(fee_status.total_fee) }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Total Fee</div>
+                </div>
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--success); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                        ₹{{ "{:,.0f}".format(fee_status.paid_amount) }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Paid Amount</div>
+                </div>
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--error); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                        ₹{{ "{:,.0f}".format(fee_status.remaining_amount) }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Remaining</div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: var(--spacing-lg);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                    <span style="color: var(--text-muted);">Payment Progress</span>
+                    <span style="color: var(--text-primary); font-weight: 600;">{{ fee_status.payment_percentage }}% Complete</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" style="width: {{ fee_status.payment_percentage }}%;"></div>
+                </div>
+            </div>
+            
+            {% if fee_status.next_due_date %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-calendar-alt"></i>
+                    Next payment due: {{ fee_status.next_due_date.strftime('%d %B %Y') }}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<!-- Payment Options -->
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-credit-card"></i> Payment Options</h3>
+        </div>
+        <div class="card-content">
+            <form id="paymentForm">
+                <div class="form-group">
+                    <label class="form-label">Payment Amount</label>
+                    <select class="form-select" id="paymentAmount" required>
+                        <option value="">Select Amount</option>
+                        {% if installment_options %}
+                            {% for option in installment_options %}
+                                <option value="{{ option.amount_per_installment }}">
+                                    ₹{{ "{:,.2f}".format(option.amount_per_installment) }} 
+                                    {% if option.installments > 1 %}({{ option.installments }} installments){% else %}(Full Payment){% endif %}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="{{ fee_status.remaining_amount if fee_status else 0 }}">
+                                ₹{{ "{:,.2f}".format(fee_status.remaining_amount if fee_status else 0) }} (Full Payment)
+                            </option>
+                        {% endif %}
+                        <option value="custom">Custom Amount</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="customAmountGroup" style="display: none;">
+                    <label class="form-label">Custom Amount</label>
+                    <input type="number" class="form-input" id="customAmount" placeholder="Enter amount" min="1" max="{{ fee_status.remaining_amount if fee_status else 0 }}">
+                    <small style="color: var(--text-muted);">Maximum: ₹{{ "{:,.2f}".format(fee_status.remaining_amount if fee_status else 0) }}</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Payment Method</label>
+                    <div style="display: grid; gap: var(--spacing-md);">
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer; padding: var(--spacing-md); border: 2px solid var(--border-color); border-radius: var(--radius-lg); transition: all 0.2s ease;">
+                            <input type="radio" name="paymentMethod" value="razorpay" class="form-radio" checked>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary);">Online Payment</div>
+                                <div style="color: var(--text-muted); font-size: 0.875rem;">Credit/Debit Card, UPI, Net Banking</div>
+                            </div>
+                            <i class="fas fa-credit-card" style="color: var(--accent-orange); margin-left: auto;"></i>
+                        </label>
+                        
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer; padding: var(--spacing-md); border: 2px solid var(--border-color); border-radius: var(--radius-lg); transition: all 0.2s ease; opacity: 0.6;">
+                            <input type="radio" name="paymentMethod" value="offline" class="form-radio" disabled>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-primary);">Offline Payment</div>
+                                <div style="color: var(--text-muted); font-size: 0.875rem;">Cash, Cheque (Visit School Office)</div>
+                            </div>
+                            <i class="fas fa-university" style="color: var(--text-muted); margin-left: auto;"></i>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-lock"></i> Proceed to Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-shield-alt"></i> Payment Security</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; gap: var(--spacing-lg);">
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-lock" style="color: var(--success); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Secure Payment</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">All payments are processed through secure, encrypted channels.</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-receipt" style="color: var(--info); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Instant Receipt</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">Get instant payment confirmation and receipt via email.</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-headset" style="color: var(--warning); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">24/7 Support</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">Contact support for any payment-related queries.</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-undo" style="color: var(--accent-orange); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Refund Policy</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">Refunds processed as per school policy within 7-10 business days.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Methods Accepted -->
+<div class="dashboard-card" style="margin-top: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-credit-card"></i> Accepted Payment Methods</h3>
+    </div>
+    <div class="card-content">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg);">
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <i class="fas fa-credit-card" style="font-size: 2rem; color: var(--info); margin-bottom: var(--spacing-md);"></i>
+                <div style="font-weight: 600; margin-bottom: var(--spacing-xs);">Credit/Debit Cards</div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Visa, MasterCard, RuPay</div>
+            </div>
+            
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <i class="fas fa-mobile-alt" style="font-size: 2rem; color: var(--success); margin-bottom: var(--spacing-md);"></i>
+                <div style="font-weight: 600; margin-bottom: var(--spacing-xs);">UPI Payment</div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Google Pay, PhonePe, Paytm</div>
+            </div>
+            
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <i class="fas fa-university" style="font-size: 2rem; color: var(--warning); margin-bottom: var(--spacing-md);"></i>
+                <div style="font-weight: 600; margin-bottom: var(--spacing-xs);">Net Banking</div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">All Major Banks</div>
+            </div>
+            
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <i class="fas fa-wallet" style="font-size: 2rem; color: var(--accent-orange); margin-bottom: var(--spacing-md);"></i>
+                <div style="font-weight: 600; margin-bottom: var(--spacing-xs);">Digital Wallets</div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Paytm, Amazon Pay</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentAmountSelect = document.getElementById('paymentAmount');
+    const customAmountGroup = document.getElementById('customAmountGroup');
+    const customAmountInput = document.getElementById('customAmount');
+    const paymentForm = document.getElementById('paymentForm');
+    
+    // Handle payment amount selection
+    paymentAmountSelect.addEventListener('change', function() {
+        if (this.value === 'custom') {
+            customAmountGroup.style.display = 'block';
+            customAmountInput.required = true;
+        } else {
+            customAmountGroup.style.display = 'none';
+            customAmountInput.required = false;
+        }
+    });
+    
+    // Handle payment method selection styling
+    const paymentMethodInputs = document.querySelectorAll('input[name="paymentMethod"]');
+    paymentMethodInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            // Reset all labels
+            paymentMethodInputs.forEach(inp => {
+                inp.closest('label').style.borderColor = 'var(--border-color)';
+                inp.closest('label').style.backgroundColor = 'transparent';
+            });
+            
+            // Highlight selected
+            if (this.checked) {
+                this.closest('label').style.borderColor = 'var(--accent-orange)';
+                this.closest('label').style.backgroundColor = 'rgba(255, 111, 0, 0.05)';
+            }
+        });
+    });
+    
+    // Handle form submission
+    paymentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const amount = paymentAmountSelect.value === 'custom' ? 
+                      customAmountInput.value : 
+                      paymentAmountSelect.value;
+        
+        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+        
+        if (!amount || amount <= 0) {
+            showNotification('Please select a valid payment amount', 'error');
+            return;
+        }
+        
+        if (paymentMethod === 'razorpay') {
+            initiateOnlinePayment(amount);
+        } else {
+            showNotification('Offline payment option is currently unavailable', 'warning');
+        }
+    });
+});
+
+function initiateOnlinePayment(amount) {
+    showNotification('Initiating secure payment...', 'info');
+    
+    // Simulate payment gateway integration
+    setTimeout(() => {
+        // In a real implementation, you would integrate with Razorpay or other payment gateway
+        const confirmed = confirm(`Proceed with payment of ₹${amount}?`);
+        if (confirmed) {
+            processPayment(amount);
+        }
+    }, 1000);
+}
+
+function processPayment(amount) {
+    showNotification('Processing payment...', 'info');
+    
+    // Simulate payment processing
+    setTimeout(() => {
+        const success = Math.random() > 0.1; // 90% success rate for demo
+        
+        if (success) {
+            showNotification('Payment successful! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = '{{ url_for("student.fees") }}';
+            }, 2000);
+        } else {
+            showNotification('Payment failed. Please try again.', 'error');
+        }
+    }, 3000);
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, type === 'info' ? 2000 : 4000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,305 @@
+{% extends "form_base.html" %}
+
+{% block title %}Edit Profile - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Edit Profile{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('teacher.profile') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Profile
+    </a>
+    <button type="submit" form="editProfileForm" class="btn btn-primary btn-sm">
+        <i class="fas fa-save"></i> Save Changes
+    </button>
+</div>
+{% endblock %}
+
+{% block form_content %}
+<form id="editProfileForm" method="POST" enctype="multipart/form-data">
+    <div class="dashboard-grid">
+        <!-- Profile Photo -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3><i class="fas fa-camera"></i> Profile Photo</h3>
+            </div>
+            <div class="card-content">
+                <div style="text-align: center;">
+                    <div style="margin-bottom: var(--spacing-lg);">
+                        {% if teacher and teacher.photo_url %}
+                        <img id="profilePreview" src="{{ url_for('static', filename='uploads/' + teacher.photo_url) }}" 
+                             alt="{{ user.name }}" 
+                             style="width: 150px; height: 150px; border-radius: var(--radius-2xl); object-fit: cover; border: 3px solid var(--accent-orange);">
+                        {% else %}
+                        <div id="profilePreview" style="width: 150px; height: 150px; border-radius: var(--radius-2xl); background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover)); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 4rem; font-weight: 700; margin: 0 auto;">
+                            {{ user.name[0].upper() }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="file" class="form-input" id="photo" name="photo" accept="image/*" onchange="previewPhoto(this)">
+                        <small style="color: var(--text-muted);">Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personal Information -->
+        <div class="dashboard-card" style="grid-column: span 2;">
+            <div class="card-header">
+                <h3><i class="fas fa-user"></i> Personal Information</h3>
+            </div>
+            <div class="card-content">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="name">Full Name *</label>
+                        <input type="text" class="form-input" id="name" name="name" value="{{ user.name }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address *</label>
+                        <input type="email" class="form-input" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="phone">Phone Number</label>
+                        <input type="tel" class="form-input" id="phone" name="phone" value="{{ teacher.phone if teacher else '' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="date_of_birth">Date of Birth</label>
+                        <input type="date" class="form-input" id="date_of_birth" name="date_of_birth" 
+                               value="{{ teacher.date_of_birth.strftime('%Y-%m-%d') if teacher and teacher.date_of_birth else '' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="gender">Gender</label>
+                        <select class="form-select" id="gender" name="gender">
+                            <option value="">Select Gender</option>
+                            <option value="male" {% if teacher and teacher.gender == 'male' %}selected{% endif %}>Male</option>
+                            <option value="female" {% if teacher and teacher.gender == 'female' %}selected{% endif %}>Female</option>
+                            <option value="other" {% if teacher and teacher.gender == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="blood_group">Blood Group</label>
+                        <select class="form-select" id="blood_group" name="blood_group">
+                            <option value="">Select Blood Group</option>
+                            <option value="A+" {% if teacher and teacher.blood_group == 'A+' %}selected{% endif %}>A+</option>
+                            <option value="A-" {% if teacher and teacher.blood_group == 'A-' %}selected{% endif %}>A-</option>
+                            <option value="B+" {% if teacher and teacher.blood_group == 'B+' %}selected{% endif %}>B+</option>
+                            <option value="B-" {% if teacher and teacher.blood_group == 'B-' %}selected{% endif %}>B-</option>
+                            <option value="AB+" {% if teacher and teacher.blood_group == 'AB+' %}selected{% endif %}>AB+</option>
+                            <option value="AB-" {% if teacher and teacher.blood_group == 'AB-' %}selected{% endif %}>AB-</option>
+                            <option value="O+" {% if teacher and teacher.blood_group == 'O+' %}selected{% endif %}>O+</option>
+                            <option value="O-" {% if teacher and teacher.blood_group == 'O-' %}selected{% endif %}>O-</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="address">Address</label>
+                    <textarea class="form-textarea" id="address" name="address" rows="3" placeholder="Enter your complete address">{{ teacher.address if teacher else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Professional Information -->
+        <div class="dashboard-card" style="grid-column: span 3;">
+            <div class="card-header">
+                <h3><i class="fas fa-briefcase"></i> Professional Information</h3>
+            </div>
+            <div class="card-content">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="employee_id">Employee ID</label>
+                        <input type="text" class="form-input" id="employee_id" name="employee_id" 
+                               value="{{ teacher.employee_id if teacher else '' }}" readonly>
+                        <small style="color: var(--text-muted);">Contact admin to change</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="designation">Designation</label>
+                        <input type="text" class="form-input" id="designation" name="designation" 
+                               value="{{ teacher.designation if teacher else '' }}" placeholder="e.g., Senior Teacher">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="department">Department</label>
+                        <input type="text" class="form-input" id="department" name="department" 
+                               value="{{ teacher.department if teacher else '' }}" placeholder="e.g., Mathematics">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="qualification">Qualification</label>
+                        <input type="text" class="form-input" id="qualification" name="qualification" 
+                               value="{{ teacher.qualification if teacher else '' }}" placeholder="e.g., M.Sc. Mathematics">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="experience_years">Experience (Years)</label>
+                        <input type="number" class="form-input" id="experience_years" name="experience_years" 
+                               value="{{ teacher.experience_years if teacher else '' }}" min="0" max="50">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="date_of_joining">Date of Joining</label>
+                        <input type="date" class="form-input" id="date_of_joining" name="date_of_joining" 
+                               value="{{ teacher.date_of_joining.strftime('%Y-%m-%d') if teacher and teacher.date_of_joining else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div class="dashboard-card" style="grid-column: span 3;">
+            <div class="card-header">
+                <h3><i class="fas fa-phone-alt"></i> Emergency Contact</h3>
+            </div>
+            <div class="card-content">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="emergency_contact_name">Emergency Contact Name</label>
+                        <input type="text" class="form-input" id="emergency_contact_name" name="emergency_contact_name" 
+                               value="{{ teacher.emergency_contact_name if teacher else '' }}" placeholder="Full name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="emergency_contact_phone">Emergency Contact Phone</label>
+                        <input type="tel" class="form-input" id="emergency_contact_phone" name="emergency_contact_phone" 
+                               value="{{ teacher.emergency_contact_phone if teacher else '' }}" placeholder="Phone number">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="emergency_contact_relation">Relationship</label>
+                        <select class="form-select" id="emergency_contact_relation" name="emergency_contact_relation">
+                            <option value="">Select Relationship</option>
+                            <option value="spouse" {% if teacher and teacher.emergency_contact_relation == 'spouse' %}selected{% endif %}>Spouse</option>
+                            <option value="parent" {% if teacher and teacher.emergency_contact_relation == 'parent' %}selected{% endif %}>Parent</option>
+                            <option value="sibling" {% if teacher and teacher.emergency_contact_relation == 'sibling' %}selected{% endif %}>Sibling</option>
+                            <option value="friend" {% if teacher and teacher.emergency_contact_relation == 'friend' %}selected{% endif %}>Friend</option>
+                            <option value="other" {% if teacher and teacher.emergency_contact_relation == 'other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('profilePreview');
+            if (preview.tagName === 'IMG') {
+                preview.src = e.target.result;
+            } else {
+                // Replace div with img
+                const img = document.createElement('img');
+                img.id = 'profilePreview';
+                img.src = e.target.result;
+                img.alt = '{{ user.name }}';
+                img.style.cssText = 'width: 150px; height: 150px; border-radius: var(--radius-2xl); object-fit: cover; border: 3px solid var(--accent-orange);';
+                preview.parentNode.replaceChild(img, preview);
+            }
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Form validation
+document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    showNotification('Saving profile changes...', 'info');
+    
+    // Simulate API call
+    setTimeout(() => {
+        showNotification('Profile updated successfully!', 'success');
+        // In real implementation, redirect to profile page
+        setTimeout(() => {
+            window.location.href = '{{ url_for("teacher.profile") }}';
+        }, 1500);
+    }, 2000);
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

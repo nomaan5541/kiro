@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - 500{% endblock %}
+
+{% block extra_css %}
+<style>
+.error-container {
+    min-height: 100vh;
+    background: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.error-container::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 30% 70%, rgba(244, 67, 54, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 70% 30%, rgba(255, 111, 0, 0.03) 0%, transparent 50%);
+    z-index: -1;
+}
+
+.error-card {
+    text-align: center;
+    max-width: 500px;
+    margin: 0 auto;
+    padding: var(--spacing-2xl);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-2xl);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    position: relative;
+}
+
+.error-code {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.error-number {
+    font-size: 6rem;
+    font-weight: 700;
+    color: var(--error);
+    margin-bottom: var(--spacing-md);
+    font-family: var(--font-mono);
+    text-shadow: 0 0 20px rgba(244, 67, 54, 0.3);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.error-number:hover {
+    animation: shake 0.5s ease-in-out;
+    text-shadow: 0 0 30px rgba(244, 67, 54, 0.5);
+}
+
+.error-divider {
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(90deg, var(--error), #EF5350);
+    margin: 0 auto var(--spacing-xl);
+    border-radius: var(--radius-full);
+}
+
+.error-message {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.error-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.error-description {
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: var(--spacing-xl);
+}
+
+.error-icon {
+    font-size: 4rem;
+    margin-bottom: var(--spacing-2xl);
+    animation: pulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px rgba(244, 67, 54, 0.3));
+}
+
+.error-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.error-btn {
+    display: block;
+    width: 100%;
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.error-btn-danger {
+    background: linear-gradient(135deg, var(--error), #EF5350);
+    color: white;
+}
+
+.error-btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(244, 67, 54, 0.3);
+}
+
+.error-btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.error-btn-secondary:hover {
+    background: var(--bg-quaternary);
+    border-color: var(--accent-orange);
+    color: var(--accent-orange);
+}
+
+.error-help {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+.error-id {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--accent-orange);
+    margin-top: var(--spacing-md);
+    border: 1px solid var(--border-color);
+}
+
+/* Animations */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+    20%, 40%, 60%, 80% { transform: translateX(2px); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .error-card {
+        margin: var(--spacing-lg);
+        padding: var(--spacing-xl);
+    }
+    
+    .error-number {
+        font-size: 4rem;
+    }
+    
+    .error-title {
+        font-size: 1.5rem;
+    }
+    
+    .error-actions {
+        gap: var(--spacing-sm);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-card">
+        <!-- Error Code -->
+        <div class="error-code">
+            <h1 class="error-number">500</h1>
+            <div class="error-divider"></div>
+        </div>
+        
+        <!-- Error Message -->
+        <div class="error-message">
+            <h2 class="error-title">Internal Server Error</h2>
+            <p class="error-description">
+                Something went wrong on our end. Our technical team has been notified and is working to fix this issue.
+            </p>
+        </div>
+        
+        <!-- Illustration -->
+        <div class="error-icon">
+            ⚠️
+        </div>
+        
+        <!-- Actions -->
+        <div class="error-actions">
+            <button onclick="location.reload()" class="error-btn error-btn-danger">
+                <i class="fas fa-redo"></i> Try Again
+            </button>
+            
+            <a href="javascript:history.back()" class="error-btn error-btn-secondary">
+                <i class="fas fa-arrow-left"></i> Go Back
+            </a>
+            
+            <a href="{{ url_for('auth.login') }}" class="error-btn error-btn-secondary">
+                <i class="fas fa-home"></i> Go to Login
+            </a>
+        </div>
+        
+        <!-- Help Text -->
+        <div class="error-help">
+            <p><i class="fas fa-exclamation-triangle"></i> If this problem persists, please contact technical support.</p>
+            
+            {% if request and hasattr(request, 'id') and request.id %}
+            <div class="error-id">
+                <strong>Error ID:</strong> {{ request.id }}
+            </div>
+            {% else %}
+            <div class="error-id">
+                <strong>Timestamp:</strong> {{ moment().format('YYYY-MM-DD HH:mm:ss') if moment else 'N/A' }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

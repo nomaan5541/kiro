@@ -1,0 +1,355 @@
+{% extends "content_base.html" %}
+
+{% block title %}My Fees - {{ student.name }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Fee Information{% endblock %}
+
+{% block content_body %}
+
+<!-- Fee Status Overview -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>₹{{ "{:,.0f}".format(fee_status.total_fee) if fee_status else '0' }}</h3>
+            <p>Total Fee</p>
+            <small>Annual Amount</small>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>₹{{ "{:,.0f}".format(fee_status.paid_amount) if fee_status else '0' }}</h3>
+            <p>Amount Paid</p>
+            <small>{{ "%.1f"|format(fee_status.payment_percentage) if fee_status else '0' }}% Complete</small>
+        </div>
+    </div>
+    
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--error), #EF4444);">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>₹{{ "{:,.0f}".format(fee_status.remaining_amount) if fee_status else '0' }}</h3>
+            <p>Balance Due</p>
+            <small>{% if fee_status and fee_status.next_due_date %}Due: {{ fee_status.next_due_date.strftime('%d %b') }}{% else %}No Due Date{% endif %}</small>
+        </div>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <!-- Fee Breakdown -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-list-ul"></i> Fee Breakdown</h3>
+        </div>
+        <div class="card-content">
+            {% if fee_structure %}
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Tuition Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.tuition_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Admission Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.admission_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Development Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.development_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Transport Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.transport_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Library Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.library_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Lab Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.lab_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Sports Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.sports_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Other Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_structure.other_fee) }}</span>
+                    </div>
+                </div>
+                <div class="list-item" style="background-color: var(--bg-tertiary); border-radius: var(--radius-lg); margin-top: var(--spacing-md);">
+                    <div class="list-item-content">
+                        <div class="list-item-title" style="color: var(--accent-orange);">Total Annual Fee</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--accent-orange); font-weight: 700; font-size: 1.25rem;">₹{{ "{:,.2f}".format(fee_structure.total_fee) }}</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-money-bill-wave"></i>
+                <p>No fee structure available</p>
+                <small>Contact school office for fee information</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payment Progress -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-line"></i> Payment Progress</h3>
+        </div>
+        <div class="card-content">
+            {% if fee_status %}
+            <div style="margin-bottom: var(--spacing-xl);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                    <span class="form-label">Payment Completion</span>
+                    <span style="color: var(--text-primary); font-weight: 600;">{{ "%.1f"|format(fee_status.payment_percentage) }}%</span>
+                </div>
+                <div class="progress">
+                    <div class="progress-bar" style="width: {{ fee_status.payment_percentage }}%"></div>
+                </div>
+            </div>
+
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Payment Status</div>
+                        {% if fee_status.next_due_date %}
+                        <div class="list-item-meta">Next Due: {{ fee_status.next_due_date.strftime('%d/%m/%Y') }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="list-item-actions">
+                        {% if fee_status.is_fully_paid %}
+                        <span class="status-badge paid">Fully Paid</span>
+                        {% elif fee_status.is_overdue %}
+                        <span class="status-badge overdue">Overdue</span>
+                        {% elif fee_status.paid_amount > 0 %}
+                        <span class="status-badge partial">Partial</span>
+                        {% else %}
+                        <span class="status-badge pending">Unpaid</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if fee_status.last_payment_date %}
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Last Payment</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ fee_status.last_payment_date.strftime('%d/%m/%Y') }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Installments</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ fee_structure.installments if fee_structure else 'N/A' }} payments</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-chart-line"></i>
+                <p>No payment information available</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Payment History -->
+<div class="table-container" style="margin-top: var(--spacing-2xl);">
+    <div class="table-header">
+        <h3><i class="fas fa-history"></i> Payment History</h3>
+        <button onclick="downloadAllReceipts()" class="btn btn-primary btn-sm">
+            <i class="fas fa-download"></i> Download All Receipts
+        </button>
+    </div>
+
+    {% if payments %}
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Receipt No.</th>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for payment in payments %}
+            <tr>
+                <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.875rem;">{{ payment.receipt_no }}</td>
+                <td>{{ payment.payment_date.strftime('%d/%m/%Y') }}</td>
+                <td style="font-weight: 600;">₹{{ "{:,.2f}".format(payment.amount) }}</td>
+                <td>
+                    <span class="badge badge-info">
+                        {{ payment.payment_mode.value.title() }}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-success">
+                        {{ payment.status.value.title() }}
+                    </span>
+                </td>
+                <td>
+                    <button onclick="downloadReceipt('{{ payment.receipt_no }}')" 
+                            class="btn btn-primary btn-sm">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-receipt"></i>
+        <h3>No Payment History</h3>
+        <p>No payments have been recorded yet.</p>
+        <small>Contact the school office for payment assistance.</small>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Contact Information -->
+<div class="dashboard-grid" style="margin-top: var(--spacing-2xl);">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-question-circle"></i> Fee Queries</h3>
+        </div>
+        <div class="card-content">
+            <p style="color: var(--text-muted); margin-bottom: var(--spacing-md);">For any fee-related questions or payment issues</p>
+            <div style="display: grid; gap: var(--spacing-sm);">
+                <p><i class="fas fa-phone" style="color: var(--accent-orange); margin-right: var(--spacing-sm);"></i> Contact: School Office</p>
+                <p><i class="fas fa-envelope" style="color: var(--accent-orange); margin-right: var(--spacing-sm);"></i> Email: fees@school.com</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-credit-card"></i> Payment Methods</h3>
+        </div>
+        <div class="card-content">
+            <p style="color: var(--text-muted); margin-bottom: var(--spacing-md);">Available payment options</p>
+            <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+                <span class="badge badge-info">Cash</span>
+                <span class="badge badge-success">Online</span>
+                <span class="badge badge-secondary">Cheque</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function downloadReceipt(receiptNo) {
+    // Open receipt download
+    window.open(`/student/receipt/${receiptNo}`, '_blank');
+}
+
+function downloadAllReceipts() {
+    // Download all receipts as ZIP
+    window.open('/student/receipts/download-all', '_blank');
+}
+</script>
+{% endblock %}

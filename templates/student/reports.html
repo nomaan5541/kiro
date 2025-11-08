@@ -1,0 +1,384 @@
+{% extends "content_base.html" %}
+
+{% block title %}Reports - Student Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Academic Reports{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-primary btn-sm" onclick="downloadReport('attendance')">
+        <i class="fas fa-download"></i> Download Attendance
+    </button>
+    <button class="btn btn-success btn-sm" onclick="downloadReport('academic')">
+        <i class="fas fa-file-pdf"></i> Academic Report
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Academic Year Info -->
+<div class="dashboard-card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-calendar-alt"></i> Academic Year {{ academic_year }}</h3>
+        <span class="badge badge-info">Current Session</span>
+    </div>
+    <div class="card-content">
+        <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: var(--success); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {{ monthly_breakdown.values()|map(attribute='present')|sum if monthly_breakdown else 0 }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Total Present Days</div>
+            </div>
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: var(--error); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {{ monthly_breakdown.values()|map(attribute='absent')|sum if monthly_breakdown else 0 }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Total Absent Days</div>
+            </div>
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: var(--warning); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {{ monthly_breakdown.values()|map(attribute='leave')|sum if monthly_breakdown else 0 }}
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Total Leave Days</div>
+            </div>
+            <div style="text-align: center; padding: var(--spacing-lg);">
+                <div style="color: var(--accent-orange); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                    {% set total_days = monthly_breakdown.values()|map(attribute='total')|sum if monthly_breakdown else 0 %}
+                    {% set present_days = monthly_breakdown.values()|map(attribute='present')|sum if monthly_breakdown else 0 %}
+                    {{ "%.1f"|format((present_days / total_days * 100) if total_days > 0 else 0) }}%
+                </div>
+                <div style="color: var(--text-muted); font-size: 0.875rem;">Overall Attendance</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Breakdown -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3><i class="fas fa-chart-line"></i> Monthly Attendance Breakdown</h3>
+        <button class="btn btn-outline btn-sm" onclick="toggleView()">
+            <i class="fas fa-table"></i> <span id="viewToggle">Table View</span>
+        </button>
+    </div>
+    <div class="card-content">
+        {% if monthly_breakdown %}
+            <!-- Chart View -->
+            <div id="chartView" style="margin-bottom: var(--spacing-xl);">
+                <canvas id="attendanceChart" style="max-height: 400px;"></canvas>
+            </div>
+            
+            <!-- Table View -->
+            <div id="tableView" style="display: none;">
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Present</th>
+                                <th>Absent</th>
+                                <th>Leave</th>
+                                <th>Total</th>
+                                <th>Percentage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month_key, data in monthly_breakdown.items() %}
+                                {% set year, month = month_key.split('-') %}
+                                {% set month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] %}
+                                <tr>
+                                    <td>{{ month_names[month|int - 1] }} {{ year }}</td>
+                                    <td><span class="status-badge present">{{ data.present }}</span></td>
+                                    <td><span class="status-badge absent">{{ data.absent }}</span></td>
+                                    <td><span class="status-badge leave">{{ data.leave }}</span></td>
+                                    <td><strong>{{ data.total }}</strong></td>
+                                    <td>
+                                        <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                                            <div class="progress" style="flex: 1; height: 8px;">
+                                                <div class="progress-bar" style="width: {{ data.percentage }}%;"></div>
+                                            </div>
+                                            <span style="font-weight: 600; color: var(--accent-orange);">{{ "%.1f"|format(data.percentage) }}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-chart-line"></i>
+                <h3>No Data Available</h3>
+                <p>No attendance data found for the current academic year.</p>
+                <small>Data will appear here once attendance is recorded.</small>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Report Actions -->
+<div class="dashboard-grid" style="margin-top: var(--spacing-xl);">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-download"></i> Download Reports</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="downloadReport('attendance')">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Attendance Report</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="downloadReport('academic')">
+                    <i class="fas fa-graduation-cap"></i>
+                    <span>Academic Report</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="downloadReport('fee')">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Fee Report</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="downloadReport('id_card')">
+                    <i class="fas fa-id-card"></i>
+                    <span>ID Card</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Report Information</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; gap: var(--spacing-lg);">
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Attendance Report</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Detailed monthly attendance with statistics and charts.</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Academic Report</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Complete academic performance and progress report.</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Fee Report</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Payment history and fee structure details.</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Student ID Card</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Official student identification card with photo.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+let currentView = 'chart';
+
+function toggleView() {
+    const chartView = document.getElementById('chartView');
+    const tableView = document.getElementById('tableView');
+    const toggleButton = document.getElementById('viewToggle');
+    
+    if (currentView === 'chart') {
+        chartView.style.display = 'none';
+        tableView.style.display = 'block';
+        toggleButton.textContent = 'Chart View';
+        currentView = 'table';
+    } else {
+        chartView.style.display = 'block';
+        tableView.style.display = 'none';
+        toggleButton.textContent = 'Table View';
+        currentView = 'chart';
+    }
+}
+
+function downloadReport(type) {
+    // Simulate report download
+    const reportTypes = {
+        'attendance': 'Attendance Report',
+        'academic': 'Academic Report',
+        'fee': 'Fee Report',
+        'id_card': 'Student ID Card'
+    };
+    
+    showNotification(`Downloading ${reportTypes[type]}...`, 'info');
+    
+    // Simulate download delay
+    setTimeout(() => {
+        showNotification(`${reportTypes[type]} downloaded successfully!`, 'success');
+    }, 2000);
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 300px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+
+// Initialize chart
+document.addEventListener('DOMContentLoaded', function() {
+    const monthlyData = {{ monthly_breakdown|tojson }};
+    if (monthlyData && Object.keys(monthlyData).length > 0) {
+        createAttendanceChart(monthlyData);
+    }
+});
+
+function createAttendanceChart(data) {
+    const ctx = document.getElementById('attendanceChart');
+    if (!ctx) return;
+    
+    const labels = [];
+    const presentData = [];
+    const absentData = [];
+    const leaveData = [];
+    
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    Object.keys(data).sort().forEach(monthKey => {
+        const [year, month] = monthKey.split('-');
+        labels.push(`${monthNames[parseInt(month) - 1]} ${year}`);
+        presentData.push(data[monthKey].present);
+        absentData.push(data[monthKey].absent);
+        leaveData.push(data[monthKey].leave);
+    });
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Present',
+                    data: presentData,
+                    backgroundColor: 'var(--success)',
+                    borderColor: 'var(--success)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Absent',
+                    data: absentData,
+                    backgroundColor: 'var(--error)',
+                    borderColor: 'var(--error)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Leave',
+                    data: leaveData,
+                    backgroundColor: 'var(--warning)',
+                    borderColor: 'var(--warning)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: 'var(--text-primary)'
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        color: 'var(--text-muted)'
+                    },
+                    grid: {
+                        color: 'var(--border-color)'
+                    }
+                },
+                y: {
+                    ticks: {
+                        color: 'var(--text-muted)'
+                    },
+                    grid: {
+                        color: 'var(--border-color)'
+                    }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,552 @@
+{% extends "content_base.html" %}
+
+{% block title %}Teacher Profile - {{ teacher.name }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Teacher Profile{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-primary btn-sm" onclick="window.location.href='{{ url_for('school_admin.edit_teacher', teacher_id=teacher.id) }}'">
+        <i class="fas fa-edit"></i> Edit Teacher
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i> Back to Teachers
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Teacher Profile Styles */
+.profile-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.profile-sidebar {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+    height: fit-content;
+    position: sticky;
+    top: var(--spacing-lg);
+}
+
+.profile-photo {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--accent-orange);
+    margin: 0 auto var(--spacing-lg);
+    display: block;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.profile-photo.placeholder {
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-green));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 3rem;
+    font-weight: 700;
+}
+
+.teacher-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.teacher-id {
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.quick-stats {
+    display: grid;
+    gap: var(--spacing-md);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.stat-icon.classes { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.stat-icon.subjects { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.stat-icon.assignments { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.stat-icon.experience { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.profile-main {
+    display: grid;
+    gap: var(--spacing-xl);
+}
+
+.info-section {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--accent-orange);
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-green));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.info-label {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-value {
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border-left: 3px solid var(--accent-orange);
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+    background: rgba(34, 197, 94, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.status-badge.inactive {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.subjects-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.subject-tag {
+    background: var(--accent-orange);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.classes-list {
+    display: grid;
+    gap: var(--spacing-sm);
+}
+
+.class-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border-left: 3px solid var(--accent-green);
+}
+
+.assignments-list {
+    display: grid;
+    gap: var(--spacing-sm);
+}
+
+.assignment-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border-left: 3px solid var(--accent-blue);
+}
+
+.assignment-title {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.assignment-date {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .profile-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .profile-sidebar {
+        position: static;
+    }
+}
+
+@media (max-width: 768px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<div class="profile-container">
+    <!-- Profile Sidebar -->
+    <div class="profile-sidebar">
+        <div class="profile-photo-container">
+            {% if teacher.photo_path %}
+                <img src="{{ url_for('files.serve_file', filename=teacher.photo_path) }}" alt="{{ teacher.name }}" class="profile-photo">
+            {% else %}
+                <div class="profile-photo placeholder">
+                    {{ teacher.name[0].upper() }}
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="teacher-name">{{ teacher.name }}</div>
+        <div class="teacher-id">ID: {{ teacher.employee_id }}</div>
+        
+        <div class="quick-stats">
+            <div class="stat-item">
+                <div class="stat-icon classes">
+                    <i class="fas fa-school"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Classes</div>
+                    <div class="stat-value">{{ attendance_stats.classes_managed }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon subjects">
+                    <i class="fas fa-book"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Subjects</div>
+                    <div class="stat-value">{{ attendance_stats.subjects_taught }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon assignments">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Assignments</div>
+                    <div class="stat-value">{{ attendance_stats.total_assignments }}</div>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon experience">
+                    <i class="fas fa-award"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Experience</div>
+                    <div class="stat-value">{{ teacher.experience_years }} years</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Profile Main Content -->
+    <div class="profile-main">
+        <!-- Basic Information -->
+        <div class="info-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div class="section-title">Basic Information</div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Full Name</div>
+                    <div class="info-value">{{ teacher.name }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Employee ID</div>
+                    <div class="info-value">{{ teacher.employee_id }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Phone Number</div>
+                    <div class="info-value">{{ teacher.phone or 'Not Provided' }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Email Address</div>
+                    <div class="info-value">{{ teacher.email or 'Not Provided' }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Address</div>
+                    <div class="info-value">{{ teacher.address or 'Not Provided' }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">
+                        <span class="status-badge {{ teacher.status.value if teacher.status else 'active' }}">
+                            <i class="fas fa-circle"></i>
+                            {{ teacher.status.value.title() if teacher.status else 'Active' }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Professional Information -->
+        <div class="info-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <div class="section-title">Professional Information</div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Qualification</div>
+                    <div class="info-value">{{ teacher.qualification or 'Not Provided' }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Experience</div>
+                    <div class="info-value">{{ teacher.experience_years }} years</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Salary</div>
+                    <div class="info-value">₹{{ "{:,.0f}".format(teacher.salary) if teacher.salary else 'Not Set' }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Joining Date</div>
+                    <div class="info-value">{{ teacher.created_at.strftime('%d/%m/%Y') if teacher.created_at else 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Subjects Taught -->
+        <div class="info-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-book-open"></i>
+                </div>
+                <div class="section-title">Subjects Taught</div>
+            </div>
+            
+            {% if teacher_subjects %}
+                <div class="subjects-list">
+                    {% for subject in teacher_subjects %}
+                        <span class="subject-tag">{{ subject.name }}</span>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No subjects assigned</p>
+            {% endif %}
+        </div>
+        
+        <!-- Classes Managed -->
+        <div class="info-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-school"></i>
+                </div>
+                <div class="section-title">Classes Managed</div>
+            </div>
+            
+            {% if teacher_classes %}
+                <div class="classes-list">
+                    {% for class in teacher_classes %}
+                        <div class="class-item">
+                            <i class="fas fa-users"></i>
+                            <span>{{ class.get_display_name() }}</span>
+                            <span class="text-muted">(Class Teacher)</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No classes assigned as class teacher</p>
+            {% endif %}
+        </div>
+        
+        <!-- Recent Assignments -->
+        <div class="info-section">
+            <div class="section-header">
+                <div class="section-icon">
+                    <i class="fas fa-tasks"></i>
+                </div>
+                <div class="section-title">Recent Assignments</div>
+            </div>
+            
+            {% if recent_assignments %}
+                <div class="assignments-list">
+                    {% for assignment in recent_assignments %}
+                        <div class="assignment-item">
+                            <div>
+                                <div class="assignment-title">{{ assignment.title }}</div>
+                                <div class="assignment-date">{{ assignment.created_at.strftime('%d/%m/%Y') }}</div>
+                            </div>
+                            <span class="status-badge {{ assignment.status.value }}">
+                                {{ assignment.status.value.title() }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No assignments created yet</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

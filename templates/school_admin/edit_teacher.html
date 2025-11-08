@@ -1,0 +1,295 @@
+{% extends "form_base.html" %}
+
+{% block title %}Edit Teacher - {{ teacher.name }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block form_title %}Edit Teacher - {{ teacher.name }}{% endblock %}
+
+{% block form_content %}
+<form method="POST" class="teacher-form">
+    <div class="form-grid">
+        <!-- Basic Information -->
+        <div class="form-section">
+            <h3 class="section-title">
+                <i class="fas fa-user"></i>
+                Basic Information
+            </h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="name">Full Name *</label>
+                    <input type="text" id="name" name="name" value="{{ teacher.name }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="employee_id">Employee ID *</label>
+                    <input type="text" id="employee_id" name="employee_id" value="{{ teacher.employee_id }}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" value="{{ teacher.phone or '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" value="{{ teacher.email or '' }}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="address">Address</label>
+                <textarea id="address" name="address" rows="3">{{ teacher.address or '' }}</textarea>
+            </div>
+        </div>
+        
+        <!-- Professional Information -->
+        <div class="form-section">
+            <h3 class="section-title">
+                <i class="fas fa-graduation-cap"></i>
+                Professional Information
+            </h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="qualification">Qualification</label>
+                    <input type="text" id="qualification" name="qualification" value="{{ teacher.qualification or '' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="experience_years">Experience (Years)</label>
+                    <input type="number" id="experience_years" name="experience_years" value="{{ teacher.experience_years or 0 }}" min="0">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="salary">Salary (₹)</label>
+                    <input type="number" id="salary" name="salary" value="{{ teacher.salary or 0 }}" min="0" step="0.01">
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option value="active" {% if teacher.status and teacher.status.value == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if teacher.status and teacher.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="on_leave" {% if teacher.status and teacher.status.value == 'on_leave' %}selected{% endif %}>On Leave</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Subject Assignment -->
+        <div class="form-section">
+            <h3 class="section-title">
+                <i class="fas fa-book-open"></i>
+                Subject Assignment
+            </h3>
+            
+            <div class="subjects-grid">
+                {% for subject in subjects %}
+                    <div class="checkbox-item">
+                        <input type="checkbox" 
+                               id="subject_{{ subject.id }}" 
+                               name="subjects" 
+                               value="{{ subject.id }}"
+                               {% if subject in teacher.subjects %}checked{% endif %}>
+                        <label for="subject_{{ subject.id }}">{{ subject.name }}</label>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Update Teacher
+        </button>
+        <a href="{{ url_for('school_admin.view_teacher', teacher_id=teacher.id) }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+.teacher-form {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.form-grid {
+    display: grid;
+    gap: var(--spacing-xl);
+}
+
+.form-section {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--accent-orange);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 3px rgba(255, 111, 0, 0.1);
+}
+
+.subjects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.checkbox-item:hover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 111, 0, 0.05);
+}
+
+.checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-orange);
+}
+
+.checkbox-item label {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.form-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .subjects-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}

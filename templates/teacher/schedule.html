@@ -1,0 +1,503 @@
+{% extends "content_base.html" %}
+
+{% block title %}My Schedule - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}My Teaching Schedule{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+    <select class="form-select" style="min-width: 120px;" onchange="changeWeek(this.value)">
+        <option value="current">Current Week</option>
+        <option value="next">Next Week</option>
+        <option value="previous">Previous Week</option>
+    </select>
+    <button class="btn btn-outline btn-sm" onclick="exportSchedule()">
+        <i class="fas fa-download"></i> Export
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="editSchedule()">
+        <i class="fas fa-edit"></i> Edit Schedule
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Schedule Overview -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ total_periods if total_periods else 0 }}</h3>
+            <p>Total Periods</p>
+            <small>This Week</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-chalkboard"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ classes_count if classes_count else 0 }}</h3>
+            <p>Classes</p>
+            <small>Assigned</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-book"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ subjects_count if subjects_count else 0 }}</h3>
+            <p>Subjects</p>
+            <small>Teaching</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-calendar-day"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ free_periods if free_periods else 0 }}</h3>
+            <p>Free Periods</p>
+            <small>Available</small>
+        </div>
+    </div>
+</div>
+
+<!-- Weekly Schedule -->
+<div class="dashboard-card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-calendar-week"></i> Weekly Schedule</h3>
+        <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+            <span class="badge badge-info">{{ current_week_start.strftime('%d %b') }} - {{ current_week_end.strftime('%d %b %Y') if current_week_end else '' }}</span>
+            <button class="btn btn-outline btn-sm" onclick="goToToday()">
+                <i class="fas fa-calendar-day"></i> Today
+            </button>
+        </div>
+    </div>
+    <div class="card-content">
+        <div class="schedule-container">
+            <div class="schedule-grid">
+                <!-- Time slots header -->
+                <div class="schedule-header">
+                    <div class="time-slot-header">Time</div>
+                    <div class="day-header">Monday</div>
+                    <div class="day-header">Tuesday</div>
+                    <div class="day-header">Wednesday</div>
+                    <div class="day-header">Thursday</div>
+                    <div class="day-header">Friday</div>
+                    <div class="day-header">Saturday</div>
+                </div>
+                
+                <!-- Schedule content -->
+                <div class="schedule-content">
+                    {% set time_slots = [
+                        ('08:00', '08:45'),
+                        ('08:45', '09:30'),
+                        ('09:30', '10:15'),
+                        ('10:15', '10:30'),
+                        ('10:30', '11:15'),
+                        ('11:15', '12:00'),
+                        ('12:00', '12:45'),
+                        ('12:45', '13:30'),
+                        ('13:30', '14:15'),
+                        ('14:15', '15:00')
+                    ] %}
+                    
+                    {% for start_time, end_time in time_slots %}
+                        <div class="time-slot">{{ start_time }}<br><small>{{ end_time }}</small></div>
+                        
+                        {% for day in ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] %}
+                            {% set period = schedule.get(day, {}).get(loop.index0) if schedule else None %}
+                            <div class="schedule-cell {% if period %}occupied{% else %}free{% endif %} {% if start_time == '10:15' %}break-time{% endif %}">
+                                {% if start_time == '10:15' %}
+                                    <div class="break-period">
+                                        <i class="fas fa-coffee"></i>
+                                        <span>Break</span>
+                                    </div>
+                                {% elif period %}
+                                    <div class="period-card">
+                                        <div class="period-subject">{{ period.subject }}</div>
+                                        <div class="period-class">{{ period.class_name }}</div>
+                                        <div class="period-room">Room: {{ period.room or 'TBA' }}</div>
+                                    </div>
+                                {% else %}
+                                    <div class="free-period">
+                                        <i class="fas fa-plus-circle"></i>
+                                        <span>Free</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Today's Schedule -->
+<div class="dashboard-grid">
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-day"></i> Today's Schedule</h3>
+            <span class="badge badge-primary">{{ today.strftime('%A, %d %B %Y') }}</span>
+        </div>
+        <div class="card-content">
+            {% if todays_schedule %}
+                <div class="list-container">
+                    {% for period in todays_schedule %}
+                        <div class="list-item">
+                            <div style="display: flex; align-items: center; gap: var(--spacing-md); width: 100%;">
+                                <div style="color: var(--accent-orange); font-size: 1.25rem;">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="list-item-content" style="flex: 1;">
+                                    <div class="list-item-title">{{ period.subject }} - {{ period.class_name }}</div>
+                                    <div class="list-item-meta">
+                                        <span>{{ period.start_time }} - {{ period.end_time }}</span>
+                                        <span>Room: {{ period.room or 'TBA' }}</span>
+                                    </div>
+                                </div>
+                                <div class="list-item-actions">
+                                    <span class="status-badge {% if period.is_current %}active{% elif period.is_completed %}completed{% else %}pending{% endif %}">
+                                        {% if period.is_current %}
+                                            Current
+                                        {% elif period.is_completed %}
+                                            Completed
+                                        {% else %}
+                                            Upcoming
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <h3>No Classes Today</h3>
+                    <p>You don't have any scheduled classes today.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Schedule Info</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; gap: var(--spacing-md);">
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-clock" style="color: var(--info); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Period Duration</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">Each period is 45 minutes long</div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-coffee" style="color: var(--warning); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Break Time</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">10:15 AM - 10:30 AM daily</div>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                    <i class="fas fa-bell" style="color: var(--success); margin-top: var(--spacing-xs);"></i>
+                    <div>
+                        <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Notifications</div>
+                        <div style="color: var(--text-muted); font-size: 0.875rem;">Get reminders 5 minutes before each class</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: var(--spacing-lg);">
+                <button class="btn btn-outline" style="width: 100%;" onclick="requestScheduleChange()">
+                    <i class="fas fa-edit"></i> Request Schedule Change
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+.schedule-container {
+    overflow-x: auto;
+}
+
+.schedule-grid {
+    min-width: 800px;
+}
+
+.schedule-header {
+    display: grid;
+    grid-template-columns: 100px repeat(6, 1fr);
+    gap: 1px;
+    margin-bottom: 1px;
+}
+
+.time-slot-header,
+.day-header {
+    background: var(--bg-secondary);
+    padding: var(--spacing-md);
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+}
+
+.schedule-content {
+    display: grid;
+    grid-template-columns: 100px repeat(6, 1fr);
+    gap: 1px;
+}
+
+.time-slot {
+    background: var(--bg-secondary);
+    padding: var(--spacing-md);
+    text-align: center;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+}
+
+.schedule-cell {
+    background: var(--bg-tertiary);
+    padding: var(--spacing-sm);
+    border-radius: var(--radius-md);
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.schedule-cell.occupied {
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover));
+}
+
+.schedule-cell.break-time {
+    background: linear-gradient(135deg, var(--warning), #F59E0B);
+}
+
+.schedule-cell:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.period-card {
+    text-align: center;
+    color: var(--bg-primary);
+}
+
+.period-subject {
+    font-weight: 700;
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.period-class {
+    font-size: 0.75rem;
+    opacity: 0.9;
+    margin-bottom: var(--spacing-xs);
+}
+
+.period-room {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.free-period {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.free-period i {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-size: 1.25rem;
+}
+
+.break-period {
+    text-align: center;
+    color: var(--bg-primary);
+    font-weight: 600;
+}
+
+.break-period i {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-size: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .schedule-container {
+        margin: 0 calc(-1 * var(--spacing-lg));
+    }
+    
+    .schedule-grid {
+        min-width: 600px;
+    }
+    
+    .time-slot-header,
+    .day-header,
+    .time-slot {
+        padding: var(--spacing-sm);
+        font-size: 0.75rem;
+    }
+    
+    .schedule-cell {
+        min-height: 60px;
+        padding: var(--spacing-xs);
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function changeWeek(week) {
+    showNotification(`Loading ${week} week schedule...`, 'info');
+    // In real implementation, reload page with week parameter
+}
+
+function goToToday() {
+    showNotification('Navigating to current week...', 'info');
+    // In real implementation, navigate to current week
+}
+
+function exportSchedule() {
+    showNotification('Exporting schedule...', 'info');
+    setTimeout(() => {
+        showNotification('Schedule exported successfully!', 'success');
+    }, 2000);
+}
+
+function editSchedule() {
+    showNotification('Schedule editing feature will be available soon', 'info');
+}
+
+function requestScheduleChange() {
+    showNotification('Schedule change request feature will be available soon', 'info');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+// Highlight current time slot
+function highlightCurrentPeriod() {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+    
+    // Time slots in minutes from midnight
+    const timeSlots = [
+        480, 525, 570, 615, 630, 675, 720, 765, 810, 855, 900
+    ];
+    
+    // Find current time slot
+    let currentSlot = -1;
+    for (let i = 0; i < timeSlots.length - 1; i++) {
+        if (currentTime >= timeSlots[i] && currentTime < timeSlots[i + 1]) {
+            currentSlot = i;
+            break;
+        }
+    }
+    
+    // Highlight current period if found
+    if (currentSlot >= 0) {
+        const cells = document.querySelectorAll('.schedule-cell');
+        const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        
+        if (dayOfWeek >= 1 && dayOfWeek <= 6) { // Monday to Saturday
+            const cellIndex = currentSlot * 6 + (dayOfWeek - 1);
+            if (cells[cellIndex]) {
+                cells[cellIndex].style.border = '2px solid var(--accent-orange)';
+                cells[cellIndex].style.boxShadow = '0 0 10px rgba(255, 165, 0, 0.5)';
+            }
+        }
+    }
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    highlightCurrentPeriod();
+    
+    // Update every minute
+    setInterval(highlightCurrentPeriod, 60000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,188 @@
+"""
+Activity Log model for tracking system activities and audit trails
+"""
+from extensions import db
+from datetime import datetime
+from enum import Enum
+
+
+class ActivityType(Enum):
+    # User activities
+    USER_LOGIN = 'user_login'
+    USER_LOGOUT = 'user_logout'
+    USER_CREATED = 'user_created'
+    USER_UPDATED = 'user_updated'
+    USER_DELETED = 'user_deleted'
+    
+    # School activities
+    SCHOOL_REGISTERED = 'school_registered'
+    SCHOOL_UPDATED = 'school_updated'
+    SCHOOL_SUSPENDED = 'school_suspended'
+    SCHOOL_ACTIVATED = 'school_activated'
+    SUBSCRIPTION_RENEWED = 'subscription_renewed'
+    
+    # Student activities
+    STUDENT_ENROLLED = 'student_enrolled'
+    STUDENT_UPDATED = 'student_updated'
+    STUDENT_TRANSFERRED = 'student_transferred'
+    STUDENT_GRADUATED = 'student_graduated'
+    
+    # Class activities
+    CLASS_CREATED = 'class_created'
+    CLASS_UPDATED = 'class_updated'
+    CLASS_DELETED = 'class_deleted'
+    
+    # Attendance activities
+    ATTENDANCE_MARKED = 'attendance_marked'
+    ATTENDANCE_UPDATED = 'attendance_updated'
+    ATTENDANCE_BULK_MARKED = 'attendance_bulk_marked'
+    
+    # Payment activities
+    PAYMENT_RECEIVED = 'payment_received'
+    PAYMENT_UPDATED = 'payment_updated'
+    PAYMENT_REFUNDED = 'payment_refunded'
+    FEE_STRUCTURE_CREATED = 'fee_structure_created'
+    FEE_STRUCTURE_UPDATED = 'fee_structure_updated'
+    
+    # System activities
+    DATA_EXPORTED = 'data_exported'
+    DATA_IMPORTED = 'data_imported'
+    BACKUP_CREATED = 'backup_created'
+    SYSTEM_ERROR = 'system_error'
+
+
+class ActivityLog(db.Model):
+    """Activity log model for tracking all system activities"""
+    __tablename__ = 'activity_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    
+    # Activity information
+    activity_type = db.Column(db.Enum(ActivityType), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    
+    # Related entity information
+    entity_type = db.Column(db.String(50), nullable=True)  # 'student', 'payment', 'class', etc.
+    entity_id = db.Column(db.Integer, nullable=True)
+    
+    # Additional data (JSON format)
+    extra_data = db.Column(db.Text, nullable=True)  # JSON string for additional data
+    
+    # Request information
+    ip_address = db.Column(db.String(45), nullable=True)  # IPv4 or IPv6
+    user_agent = db.Column(db.Text, nullable=True)
+    
+    # Timestamp
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    # Relationships
+    school = db.relationship('School', backref='activity_logs', lazy=True)
+    user = db.relationship('User', backref='activity_logs', lazy=True)
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.activity_type.value} by {self.user.name if self.user else "System"}>'
+    
+    @classmethod
+    def log_activity(cls, activity_type, description, school_id=None, user_id=None, 
+                    entity_type=None, entity_id=None, extra_data=None, 
+                    ip_address=None, user_agent=None):
+        """Helper method to create activity log entries"""
+        activity = cls(
+            school_id=school_id,
+            user_id=user_id,
+            activity_type=activity_type,
+            description=description,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            extra_data=extra_data,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        db.session.add(activity)
+        return activity
+    
+    def to_dict(self):
+        """Convert activity log to dictionary"""
+        return {
+            'id': self.id,
+            'school_id': self.school_id,
+            'user_id': self.user_id,
+            'activity_type': self.activity_type.value,
+            'description': self.description,
+            'entity_type': self.entity_type,
+            'entity_id': self.entity_id,
+            'extra_data': self.extra_data,
+            'ip_address': self.ip_address,
+            'user_agent': self.user_agent,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class SystemMetrics(db.Model):
+    """System metrics model for tracking system performance and usage"""
+    __tablename__ = 'system_metrics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Metric information
+    metric_name = db.Column(db.String(100), nullable=False)
+    metric_value = db.Column(db.Float, nullable=False)
+    metric_unit = db.Column(db.String(20), nullable=True)  # 'count', 'percentage', 'seconds', etc.
+    
+    # Context information
+    school_id = db.Column(db.Integer, db.ForeignKey('schools.id'), nullable=True)
+    context = db.Column(db.String(100), nullable=True)  # Additional context
+    
+    # Time period
+    date = db.Column(db.Date, nullable=False)
+    hour = db.Column(db.Integer, nullable=True)  # For hourly metrics
+    
+    # Timestamp
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    school = db.relationship('School', backref='metrics', lazy=True)
+    
+    # Index for efficient querying
+    __table_args__ = (
+        db.Index('idx_metrics_name_date', 'metric_name', 'date'),
+        db.Index('idx_metrics_school_date', 'school_id', 'date'),
+    )
+    
+    def __repr__(self):
+        return f'<SystemMetrics {self.metric_name}: {self.metric_value} {self.metric_unit or ""}>'
+    
+    @classmethod
+    def record_metric(cls, metric_name, metric_value, metric_unit=None, 
+                     school_id=None, context=None, date=None, hour=None):
+        """Helper method to record system metrics"""
+        if date is None:
+            date = datetime.utcnow().date()
+        
+        metric = cls(
+            metric_name=metric_name,
+            metric_value=metric_value,
+            metric_unit=metric_unit,
+            school_id=school_id,
+            context=context,
+            date=date,
+            hour=hour
+        )
+        db.session.add(metric)
+        return metric
+    
+    def to_dict(self):
+        """Convert system metrics to dictionary"""
+        return {
+            'id': self.id,
+            'metric_name': self.metric_name,
+            'metric_value': self.metric_value,
+            'metric_unit': self.metric_unit,
+            'school_id': self.school_id,
+            'context': self.context,
+            'date': self.date.isoformat() if self.date else None,
+            'hour': self.hour,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

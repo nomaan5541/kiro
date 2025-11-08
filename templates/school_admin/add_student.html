@@ -1,0 +1,364 @@
+{% extends "form_base.html" %}
+
+{% block title %}Add Student - School Admin{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> School Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name if school else 'Administrator' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Add New Student{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('school_admin.students') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Students
+    </a>
+    <button type="submit" form="addStudentForm" class="btn btn-primary btn-sm">
+        <i class="fas fa-save"></i> Save Student
+    </button>
+</div>
+{% endblock %}
+
+{% block form_content %}
+<form id="addStudentForm" method="POST" enctype="multipart/form-data">
+    <div class="dashboard-grid">
+        <!-- Basic Information -->
+        <div class="dashboard-card" style="grid-column: span 2;">
+            <div class="card-header">
+                <h3><i class="fas fa-id-card"></i> Basic Information</h3>
+                <span class="badge badge-info">Required Fields</span>
+            </div>
+            <div class="card-content">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="name">Full Name *</label>
+                        <input type="text" class="form-input" id="name" name="name" placeholder="Enter student's full name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="admission_no">Admission Number *</label>
+                        <input type="text" class="form-input" id="admission_no" name="admission_no" placeholder="Auto-generated" required>
+                        <small style="color: var(--text-muted);">Unique identifier for the student</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="roll_number">Roll Number *</label>
+                        <input type="text" class="form-input" id="roll_number" name="roll_number" placeholder="Enter roll number" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="admission_date">Admission Date *</label>
+                        <input type="date" class="form-input" id="admission_date" name="admission_date" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="class_id">Class</label>
+                        <select class="form-select" id="class_id" name="class_id">
+                            <option value="">Select Class</option>
+                            {% for class in classes %}
+                            <option value="{{ class.id }}">{{ class.get_display_name() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="gender">Gender *</label>
+                        <select class="form-select" id="gender" name="gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Photo Upload -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3><i class="fas fa-camera"></i> Student Photo</h3>
+            </div>
+            <div class="card-content">
+                <div style="text-align: center;">
+                    <div style="margin-bottom: var(--spacing-lg);">
+                        <div id="photoPreview" style="width: 150px; height: 150px; border-radius: var(--radius-2xl); background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover)); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 4rem; font-weight: 700; margin: 0 auto;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="file" class="form-input" id="photo" name="photo" accept="image/*" onchange="previewPhoto(this)">
+                        <small style="color: var(--text-muted);">Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Personal Information -->
+        <div class="dashboard-card" style="grid-column: span 3;">
+            <div class="card-header">
+                <h3><i class="fas fa-user-circle"></i> Personal Information</h3>
+            </div>
+            <div class="card-content">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="date_of_birth">Date of Birth *</label>
+                        <input type="date" class="form-input" id="date_of_birth" name="date_of_birth" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="father_name">Father's Name *</label>
+                        <input type="text" class="form-input" id="father_name" name="father_name" placeholder="Enter father's name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="mother_name">Mother's Name *</label>
+                        <input type="text" class="form-input" id="mother_name" name="mother_name" placeholder="Enter mother's name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="blood_group">Blood Group</label>
+                        <select class="form-select" id="blood_group" name="blood_group">
+                            <option value="">Select Blood Group</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="pen_no">PEN Number</label>
+                        <input type="text" class="form-input" id="pen_no" name="pen_no" placeholder="Permanent Education Number">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="aadhar_no">Aadhar Number</label>
+                        <input type="text" class="form-input" id="aadhar_no" name="aadhar_no" placeholder="12-digit Aadhar number">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="dashboard-card" style="grid-column: span 2;">
+            <div class="card-header">
+                <h3><i class="fas fa-address-book"></i> Contact Information</h3>
+            </div>
+            <div class="card-content">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="phone">Phone Number *</label>
+                        <input type="tel" class="form-input" id="phone" name="phone" placeholder="Enter phone number" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="email">Email Address</label>
+                        <input type="email" class="form-input" id="email" name="email" placeholder="Enter email address">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="address">Address *</label>
+                    <textarea class="form-textarea" id="address" name="address" rows="3" placeholder="Enter complete address" required></textarea>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-lg);">
+                    <div class="form-group">
+                        <label class="form-label" for="city">City</label>
+                        <input type="text" class="form-input" id="city" name="city" placeholder="Enter city">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="state">State</label>
+                        <input type="text" class="form-input" id="state" name="state" placeholder="Enter state">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="pincode">Pincode</label>
+                        <input type="text" class="form-input" id="pincode" name="pincode" placeholder="Enter pincode" pattern="[0-9]{6}" maxlength="6">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="bio">Bio/Notes</label>
+                    <textarea class="form-textarea" id="bio" name="bio" rows="3" placeholder="Additional information about the student"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Academic Information -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3><i class="fas fa-graduation-cap"></i> Academic Information</h3>
+            </div>
+            <div class="card-content">
+                <div class="form-group">
+                    <label class="form-label" for="previous_school">Previous School</label>
+                    <input type="text" class="form-input" id="previous_school" name="previous_school" placeholder="Name of previous school">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="previous_class">Previous Class</label>
+                    <input type="text" class="form-input" id="previous_class" name="previous_class" placeholder="Last class attended">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="tc_number">Transfer Certificate Number</label>
+                    <input type="text" class="form-input" id="tc_number" name="tc_number" placeholder="TC number if applicable">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="status">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-2xl);">`;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Auto-generate admission number
+document.addEventListener('DOMContentLoaded', function() {
+    const admissionInput = document.getElementById('admission_no');
+    if (admissionInput && !admissionInput.value) {
+        const year = new Date().getFullYear();
+        const randomNum = Math.floor(Math.random() * 9999) + 1;
+        admissionInput.value = `STU${year}${randomNum.toString().padStart(4, '0')}`;
+    }
+});
+
+// Auto-generate roll number based on class selection
+document.getElementById('class_id').addEventListener('change', function() {
+    const rollInput = document.getElementById('roll_number');
+    if (this.value && !rollInput.value) {
+        const randomNum = Math.floor(Math.random() * 99) + 1;
+        rollInput.value = randomNum.toString().padStart(2, '0');
+    }
+});
+
+// Form validation and submission
+document.getElementById('addStudentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    // Basic validation
+    const requiredFields = this.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            field.style.borderColor = 'var(--error)';
+            isValid = false;
+        } else {
+            field.style.borderColor = 'var(--bg-tertiary)';
+        }
+    });
+    
+    if (!isValid) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    showNotification('Adding student...', 'info');
+    
+    // Simulate API call
+    setTimeout(() => {
+        showNotification('Student added successfully!', 'success');
+        setTimeout(() => {
+            window.location.href = '{{ url_for("school_admin.students") }}';
+        }, 1500);
+    }, 2000);
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

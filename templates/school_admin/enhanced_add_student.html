@@ -1,0 +1,820 @@
+{% extends "content_base.html" %}
+
+{% block title %}Add Student{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Add New Student{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('school_admin.students') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Students
+    </a>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="generateAdmissionNo()">
+        <i class="fas fa-magic"></i> Generate Admission No.
+    </button>
+    <button type="submit" form="addStudentForm" class="btn btn-primary btn-sm">
+        <i class="fas fa-save"></i> Save Student
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Enhanced Student Form Styles */
+.student-form-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--spacing-xl);
+    margin-bottom: var(--spacing-xl);
+}
+
+.photo-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    height: fit-content;
+    text-align: center;
+}
+
+.photo-upload-area {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    margin: 0 auto var(--spacing-lg);
+    border: 3px dashed var(--border-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.photo-upload-area:hover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.photo-upload-area.has-photo {
+    border-style: solid;
+    border-color: var(--accent-green);
+}
+
+.photo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--text-muted);
+}
+
+.photo-placeholder i {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.photo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 50%;
+}
+
+.photo-upload-area:hover .photo-overlay {
+    opacity: 1;
+}
+
+.upload-btn {
+    background: var(--accent-orange);
+    color: white;
+    border: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.form-sections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xl);
+}
+
+.form-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.section-header {
+    background: var(--bg-secondary);
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.section-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.section-badge {
+    background: var(--accent-orange);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.section-content {
+    padding: var(--spacing-xl);
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.form-label .required {
+    color: var(--accent-red);
+}
+
+.form-input, .form-select, .form-textarea {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-help {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: var(--spacing-xs);
+}
+
+.form-actions {
+    background: var(--bg-secondary);
+    padding: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+}
+
+/* Progress Indicator */
+.form-progress {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xl);
+}
+
+.progress-step {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.progress-step.active {
+    background: var(--accent-orange);
+    color: white;
+}
+
+.progress-step.completed {
+    background: var(--accent-green);
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .student-form-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .photo-upload-area {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<!-- Form Progress Indicator -->
+<div class="form-progress">
+    <div class="progress-step active">
+        <i class="fas fa-user"></i>
+        <span>Basic Info</span>
+    </div>
+    <div class="progress-step">
+        <i class="fas fa-home"></i>
+        <span>Address</span>
+    </div>
+    <div class="progress-step">
+        <i class="fas fa-heart"></i>
+        <span>Medical</span>
+    </div>
+    <div class="progress-step">
+        <i class="fas fa-check"></i>
+        <span>Review</span>
+    </div>
+</div>
+
+<form id="addStudentForm" method="POST" enctype="multipart/form-data">
+    <div class="student-form-container">
+        <!-- Photo Section -->
+        <div class="photo-section">
+            <h4 style="margin-bottom: var(--spacing-lg); color: var(--text-primary);">
+                <i class="fas fa-camera"></i> Student Photo
+            </h4>
+            
+            <div class="photo-upload-area" onclick="document.getElementById('photoInput').click()">
+                <div class="photo-placeholder" id="photoPlaceholder">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Upload Photo</span>
+                </div>
+                <div class="photo-overlay">
+                    <div class="upload-btn">
+                        <i class="fas fa-camera"></i>
+                        <span>Choose Photo</span>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="file" id="photoInput" name="photo" accept="image/*" style="display: none;" onchange="previewPhoto(event)">
+            
+            <div class="form-help">
+                Supported formats: JPG, PNG, GIF<br>
+                Maximum size: 5MB<br>
+                Recommended: 300x300 pixels
+            </div>
+            
+            <div style="margin-top: var(--spacing-lg);">
+                <button type="button" class="btn btn-outline btn-sm" onclick="removePhoto()" id="removePhotoBtn" style="display: none;">
+                    <i class="fas fa-trash"></i> Remove Photo
+                </button>
+            </div>
+        </div>
+        
+        <!-- Form Sections -->
+        <div class="form-sections">
+            <!-- Basic Information Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-id-card"></i>
+                        Basic Information
+                    </div>
+                    <div class="section-badge">Required</div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Full Name <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="name" placeholder="Enter student's full name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Admission Number <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="admission_no" id="admissionNo" placeholder="Click generate button" required>
+                            <div class="form-help">Unique identifier for the student</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Roll Number <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="roll_number" placeholder="Enter roll number" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Class <span class="required">*</span>
+                            </label>
+                            <select class="form-select" name="class_id" required>
+                                <option value="">Select Class</option>
+                                {% for class in classes %}
+                                <option value="{{ class.id }}">{{ class.get_display_name() }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Gender <span class="required">*</span>
+                            </label>
+                            <select class="form-select" name="gender" required>
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Date of Birth <span class="required">*</span>
+                            </label>
+                            <input type="date" class="form-input" name="date_of_birth" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Admission Date <span class="required">*</span>
+                            </label>
+                            <input type="date" class="form-input" name="admission_date" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Blood Group</label>
+                            <select class="form-select" name="blood_group">
+                                <option value="">Select Blood Group</option>
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                                <option value="O+">O+</option>
+                                <option value="O-">O-</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Parent Information Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-users"></i>
+                        Parent Information
+                    </div>
+                    <div class="section-badge">Required</div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">
+                                Father's Name <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="father_name" placeholder="Enter father's full name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Mother's Name <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="mother_name" placeholder="Enter mother's full name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Primary Phone <span class="required">*</span>
+                            </label>
+                            <input type="tel" class="form-input" name="phone" placeholder="Enter primary contact number" required>
+                            <div class="form-help">This will be used for SMS and WhatsApp notifications</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Parent Email</label>
+                            <input type="email" class="form-input" name="email" placeholder="Enter parent's email address">
+                            <div class="form-help">For email notifications and online portal access</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Address Information Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-map-marker-alt"></i>
+                        Address Information
+                    </div>
+                    <div class="section-badge">Required</div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid">
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label class="form-label">
+                                Address <span class="required">*</span>
+                            </label>
+                            <textarea class="form-textarea" name="address" rows="3" placeholder="Enter complete address" required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                City <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="city" placeholder="Enter city" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                State <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="state" placeholder="Enter state" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                PIN Code <span class="required">*</span>
+                            </label>
+                            <input type="text" class="form-input" name="pincode" placeholder="Enter PIN code" pattern="[0-9]{6}" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Additional Information Section -->
+            <div class="form-section">
+                <div class="section-header">
+                    <div class="section-title">
+                        <i class="fas fa-info-circle"></i>
+                        Additional Information
+                    </div>
+                    <div class="section-badge">Optional</div>
+                </div>
+                
+                <div class="section-content">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">PEN Number</label>
+                            <input type="text" class="form-input" name="pen_no" placeholder="Permanent Education Number">
+                            <div class="form-help">Government issued education ID</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Student Status</label>
+                            <select class="form-select" name="status">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                <option value="transferred">Transferred</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label class="form-label">Bio/Notes</label>
+                            <textarea class="form-textarea" name="bio" rows="4" placeholder="Additional information about the student (medical conditions, special needs, etc.)"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Form Actions -->
+    <div class="form-actions">
+        <button type="button" class="btn btn-outline" onclick="resetForm()">
+            <i class="fas fa-undo"></i> Reset Form
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="saveAsDraft()">
+            <i class="fas fa-save"></i> Save as Draft
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Add Student
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Photo upload functionality
+function previewPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showNotification('Please select an image file.', 'error');
+        return;
+    }
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+        showNotification('File size must be less than 5MB.', 'error');
+        return;
+    }
+    
+    // Preview the image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const uploadArea = document.querySelector('.photo-upload-area');
+        uploadArea.innerHTML = `
+            <img src="${e.target.result}" alt="Preview" class="photo-preview">
+            <div class="photo-overlay">
+                <div class="upload-btn">
+                    <i class="fas fa-camera"></i>
+                    <span>Change Photo</span>
+                </div>
+            </div>
+        `;
+        uploadArea.classList.add('has-photo');
+        document.getElementById('removePhotoBtn').style.display = 'inline-block';
+    };
+    reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+    const uploadArea = document.querySelector('.photo-upload-area');
+    uploadArea.innerHTML = `
+        <div class="photo-placeholder" id="photoPlaceholder">
+            <i class="fas fa-user-plus"></i>
+            <span>Upload Photo</span>
+        </div>
+        <div class="photo-overlay">
+            <div class="upload-btn">
+                <i class="fas fa-camera"></i>
+                <span>Choose Photo</span>
+            </div>
+        </div>
+    `;
+    uploadArea.classList.remove('has-photo');
+    document.getElementById('photoInput').value = '';
+    document.getElementById('removePhotoBtn').style.display = 'none';
+}
+
+// Generate admission number
+function generateAdmissionNo() {
+    const currentYear = new Date().getFullYear();
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    const admissionNo = `ADM${currentYear}${randomNum}`;
+    
+    document.getElementById('admissionNo').value = admissionNo;
+    showNotification('Admission number generated successfully!', 'success');
+}
+
+// Form validation
+function validateForm() {
+    const requiredFields = [
+        'name', 'admission_no', 'roll_number', 'class_id', 'gender', 
+        'date_of_birth', 'admission_date', 'father_name', 'mother_name', 
+        'phone', 'address', 'city', 'state', 'pincode'
+    ];
+    
+    let isValid = true;
+    let firstInvalidField = null;
+    
+    requiredFields.forEach(fieldName => {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (field && !field.value.trim()) {
+            field.style.borderColor = 'var(--accent-red)';
+            if (!firstInvalidField) {
+                firstInvalidField = field;
+            }
+            isValid = false;
+        } else if (field) {
+            field.style.borderColor = 'var(--border-color)';
+        }
+    });
+    
+    if (!isValid) {
+        showNotification('Please fill in all required fields.', 'error');
+        if (firstInvalidField) {
+            firstInvalidField.focus();
+        }
+    }
+    
+    return isValid;
+}
+
+// Form submission
+document.getElementById('addStudentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = document.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding Student...';
+    submitBtn.disabled = true;
+    
+    // Submit form
+    const formData = new FormData(this);
+    
+    fetch('{{ url_for("school_admin.add_student") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Student added successfully!', 'success');
+            setTimeout(() => {
+                window.location.href = '{{ url_for("school_admin.students") }}';
+            }, 1500);
+        } else {
+            showNotification('Error adding student: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred while adding student.', 'error');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Utility functions
+function resetForm() {
+    if (confirm('Are you sure you want to reset the form? All entered data will be lost.')) {
+        document.getElementById('addStudentForm').reset();
+        removePhoto();
+    }
+}
+
+function saveAsDraft() {
+    showNotification('Save as draft feature coming soon.', 'info');
+}
+
+// Phone number formatting
+document.querySelector('input[name="phone"]').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 10) {
+        value = value.slice(0, 10);
+    }
+    e.target.value = value;
+});
+
+// PIN code validation
+document.querySelector('input[name="pincode"]').addEventListener('input', function(e) {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 6) {
+        value = value.slice(0, 6);
+    }
+    e.target.value = value;
+});
+
+// Auto-generate admission number on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (!document.getElementById('admissionNo').value) {
+        generateAdmissionNo();
+    }
+});
+
+// Notification function
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

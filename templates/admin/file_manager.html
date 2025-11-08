@@ -1,0 +1,963 @@
+{% extends "content_base.html" %}
+
+{% block title %}File Manager{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">File Management</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.file_manager') }}">
+        <i class="fas fa-folder"></i> File Manager
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}File Manager{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="refreshFileList()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="showUploadModal()">
+        <i class="fas fa-upload"></i> Upload Files
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="cleanupTempFiles()">
+        <i class="fas fa-broom"></i> Cleanup
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* File Manager Styles */
+.file-manager-container {
+    display: grid;
+    grid-template-columns: 250px 1fr;
+    gap: var(--spacing-lg);
+    height: calc(100vh - 200px);
+}
+
+.file-tree {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+}
+
+.file-content {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    overflow-y: auto;
+}
+
+.tree-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    cursor: pointer;
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+    margin-bottom: var(--spacing-xs);
+}
+
+.tree-item:hover {
+    background: var(--bg-secondary);
+}
+
+.tree-item.active {
+    background: var(--accent-orange);
+    color: white;
+}
+
+.tree-item i {
+    width: 16px;
+    color: var(--accent-orange);
+}
+
+.tree-item.active i {
+    color: white;
+}
+
+.storage-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.storage-stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.storage-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-blue));
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-md);
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stat-icon.total { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.stat-icon.images { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.stat-icon.documents { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.stat-icon.assignments { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.file-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.file-item {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.file-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-sm);
+    color: white;
+    font-size: 1.2rem;
+}
+
+.file-icon.image { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.file-icon.document { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.file-icon.spreadsheet { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.file-icon.presentation { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.file-icon.archive { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.file-icon.other { background: linear-gradient(135deg, #6b7280, #4b5563); }
+
+.file-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    text-align: center;
+    font-size: 0.875rem;
+    word-break: break-word;
+}
+
+.file-size {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-align: center;
+}
+
+.file-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.btn-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-icon:hover {
+    background: var(--accent-orange);
+    color: white;
+    border-color: var(--accent-orange);
+}
+
+.btn-icon.danger:hover {
+    background: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-xl);
+}
+
+.modal-footer {
+    padding: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+}
+
+/* Upload Area */
+.upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2xl);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-area:hover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.upload-area.dragover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 107, 53, 0.1);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--accent-orange);
+    margin-bottom: var(--spacing-md);
+}
+
+.upload-text {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.upload-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Progress Bar */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: var(--spacing-md);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .file-manager-container {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+    
+    .storage-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .file-list {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<!-- Storage Statistics -->
+<div class="storage-stats">
+    <div class="storage-stat-card">
+        <div class="stat-icon total">
+            <i class="fas fa-hdd"></i>
+        </div>
+        <div class="stat-value">{{ storage_stats.total_size_mb }}MB</div>
+        <div class="stat-label">Total Storage Used</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="stat-icon images">
+            <i class="fas fa-images"></i>
+        </div>
+        <div class="stat-value">{{ storage_stats.image_count }}</div>
+        <div class="stat-label">Images</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="stat-icon documents">
+            <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="stat-value">{{ storage_stats.document_count }}</div>
+        <div class="stat-label">Documents</div>
+    </div>
+    
+    <div class="storage-stat-card">
+        <div class="stat-icon assignments">
+            <i class="fas fa-tasks"></i>
+        </div>
+        <div class="stat-value">{{ storage_stats.assignment_count }}</div>
+        <div class="stat-label">Assignment Files</div>
+    </div>
+</div>
+
+<!-- File Manager -->
+<div class="file-manager-container">
+    <!-- File Tree -->
+    <div class="file-tree">
+        <h4 style="margin-bottom: var(--spacing-lg); color: var(--text-primary);">
+            <i class="fas fa-folder-tree"></i> Directories
+        </h4>
+        
+        <div class="tree-item active" onclick="loadDirectory('all')">
+            <i class="fas fa-folder"></i>
+            <span>All Files</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('students/photos')">
+            <i class="fas fa-user-graduate"></i>
+            <span>Student Photos</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('teachers/photos')">
+            <i class="fas fa-chalkboard-teacher"></i>
+            <span>Teacher Photos</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('assignments/materials')">
+            <i class="fas fa-tasks"></i>
+            <span>Assignment Materials</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('assignments/submissions')">
+            <i class="fas fa-upload"></i>
+            <span>Student Submissions</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('system/receipts')">
+            <i class="fas fa-receipt"></i>
+            <span>Fee Receipts</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('system/backups')">
+            <i class="fas fa-database"></i>
+            <span>System Backups</span>
+        </div>
+        
+        <div class="tree-item" onclick="loadDirectory('temp')">
+            <i class="fas fa-clock"></i>
+            <span>Temporary Files</span>
+        </div>
+    </div>
+    
+    <!-- File Content -->
+    <div class="file-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h4 id="currentPath" style="margin: 0; color: var(--text-primary);">
+                <i class="fas fa-folder-open"></i> All Files
+            </h4>
+            <div style="display: flex; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm" onclick="toggleView('grid')" id="gridViewBtn">
+                    <i class="fas fa-th"></i>
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="toggleView('list')" id="listViewBtn">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div id="fileList" class="file-list">
+            <!-- Files will be loaded here -->
+        </div>
+        
+        <div id="loadingIndicator" style="text-align: center; padding: var(--spacing-2xl); display: none;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--accent-orange);"></i>
+            <p style="margin-top: var(--spacing-md); color: var(--text-secondary);">Loading files...</p>
+        </div>
+        
+        <div id="emptyState" style="text-align: center; padding: var(--spacing-2xl); display: none;">
+            <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--text-muted); margin-bottom: var(--spacing-lg);"></i>
+            <h3 style="color: var(--text-primary); margin-bottom: var(--spacing-sm);">No Files Found</h3>
+            <p style="color: var(--text-muted);">This directory is empty or no files match your criteria.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-upload"></i> Upload Files</h3>
+            <button class="modal-close" onclick="closeModal('uploadModal')">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="upload-text">Click to select files or drag and drop</div>
+                <div class="upload-hint">Maximum file size: 10MB per file</div>
+                <input type="file" id="fileInput" multiple style="display: none;">
+            </div>
+            
+            <div id="uploadProgress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p id="uploadStatus" style="text-align: center; margin-top: var(--spacing-sm); color: var(--text-secondary);">
+                    Uploading files...
+                </p>
+            </div>
+            
+            <div id="uploadResults" style="margin-top: var(--spacing-lg); display: none;">
+                <!-- Upload results will be shown here -->
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('uploadModal')">Close</button>
+            <button class="btn btn-primary" onclick="startUpload()" id="uploadBtn" disabled>
+                <i class="fas fa-upload"></i> Upload Files
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
+<script>
+let currentDirectory = 'all';
+let selectedFiles = [];
+let viewMode = 'grid';
+
+// Initialize file manager
+document.addEventListener('DOMContentLoaded', function() {
+    loadDirectory('all');
+    setupDragAndDrop();
+});
+
+// Load directory contents
+function loadDirectory(directory) {
+    currentDirectory = directory;
+    
+    // Update active tree item
+    document.querySelectorAll('.tree-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.tree-item').classList.add('active');
+    
+    // Update path display
+    const pathNames = {
+        'all': 'All Files',
+        'students/photos': 'Student Photos',
+        'teachers/photos': 'Teacher Photos',
+        'assignments/materials': 'Assignment Materials',
+        'assignments/submissions': 'Student Submissions',
+        'system/receipts': 'Fee Receipts',
+        'system/backups': 'System Backups',
+        'temp': 'Temporary Files'
+    };
+    
+    document.getElementById('currentPath').innerHTML = 
+        `<i class="fas fa-folder-open"></i> ${pathNames[directory] || directory}`;
+    
+    // Show loading
+    showLoading();
+    
+    // Load files
+    fetch(`/api/files/list?directory=${encodeURIComponent(directory)}`)
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            if (data.success) {
+                displayFiles(data.files);
+            } else {
+                showError('Failed to load files: ' + data.message);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            showError('Error loading files: ' + error.message);
+        });
+}
+
+// Display files in the current view mode
+function displayFiles(files) {
+    const fileList = document.getElementById('fileList');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (files.length === 0) {
+        fileList.style.display = 'none';
+        emptyState.style.display = 'block';
+        return;
+    }
+    
+    fileList.style.display = 'grid';
+    emptyState.style.display = 'none';
+    
+    fileList.innerHTML = files.map(file => {
+        const fileType = getFileType(file.name);
+        const fileIcon = getFileIcon(fileType);
+        
+        return `
+            <div class="file-item" data-file="${file.path}">
+                <div class="file-icon ${fileType}">
+                    <i class="fas fa-${fileIcon}"></i>
+                </div>
+                <div class="file-name" title="${file.name}">${file.name}</div>
+                <div class="file-size">${formatFileSize(file.size)}</div>
+                <div class="file-actions">
+                    <button class="btn-icon" onclick="downloadFile('${file.path}')" title="Download">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn-icon" onclick="viewFile('${file.path}')" title="View">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-icon danger" onclick="deleteFile('${file.path}')" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Get file type based on extension
+function getFileType(filename) {
+    const ext = filename.split('.').pop().toLowerCase();
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) {
+        return 'image';
+    } else if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext)) {
+        return 'document';
+    } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
+        return 'spreadsheet';
+    } else if (['ppt', 'pptx'].includes(ext)) {
+        return 'presentation';
+    } else if (['zip', 'rar', '7z'].includes(ext)) {
+        return 'archive';
+    } else {
+        return 'other';
+    }
+}
+
+// Get file icon based on type
+function getFileIcon(fileType) {
+    const icons = {
+        'image': 'image',
+        'document': 'file-alt',
+        'spreadsheet': 'file-excel',
+        'presentation': 'file-powerpoint',
+        'archive': 'file-archive',
+        'other': 'file'
+    };
+    
+    return icons[fileType] || 'file';
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+// Toggle view mode
+function toggleView(mode) {
+    viewMode = mode;
+    
+    document.getElementById('gridViewBtn').classList.toggle('btn-primary', mode === 'grid');
+    document.getElementById('gridViewBtn').classList.toggle('btn-outline', mode !== 'grid');
+    document.getElementById('listViewBtn').classList.toggle('btn-primary', mode === 'list');
+    document.getElementById('listViewBtn').classList.toggle('btn-outline', mode !== 'list');
+    
+    const fileList = document.getElementById('fileList');
+    if (mode === 'list') {
+        fileList.style.gridTemplateColumns = '1fr';
+        fileList.querySelectorAll('.file-item').forEach(item => {
+            item.style.display = 'flex';
+            item.style.alignItems = 'center';
+            item.style.textAlign = 'left';
+        });
+    } else {
+        fileList.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+        fileList.querySelectorAll('.file-item').forEach(item => {
+            item.style.display = 'block';
+            item.style.textAlign = 'center';
+        });
+    }
+}
+
+// File operations
+function downloadFile(filePath) {
+    window.open(`/api/files/download?path=${encodeURIComponent(filePath)}`, '_blank');
+}
+
+function viewFile(filePath) {
+    window.open(`/api/files/view?path=${encodeURIComponent(filePath)}`, '_blank');
+}
+
+function deleteFile(filePath) {
+    if (confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+        fetch('/api/files/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ path: filePath })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('File deleted successfully', 'success');
+                loadDirectory(currentDirectory);
+            } else {
+                showNotification('Failed to delete file: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error deleting file: ' + error.message, 'error');
+        });
+    }
+}
+
+// Upload functionality
+function showUploadModal() {
+    document.getElementById('uploadModal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    resetUploadForm();
+}
+
+function resetUploadForm() {
+    selectedFiles = [];
+    document.getElementById('fileInput').value = '';
+    document.getElementById('uploadBtn').disabled = true;
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('uploadResults').style.display = 'none';
+}
+
+// File input change handler
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    selectedFiles = Array.from(e.target.files);
+    document.getElementById('uploadBtn').disabled = selectedFiles.length === 0;
+});
+
+// Drag and drop functionality
+function setupDragAndDrop() {
+    const uploadArea = document.querySelector('.upload-area');
+    
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        selectedFiles = Array.from(e.dataTransfer.files);
+        document.getElementById('uploadBtn').disabled = selectedFiles.length === 0;
+    });
+}
+
+// Start upload
+function startUpload() {
+    if (selectedFiles.length === 0) return;
+    
+    const formData = new FormData();
+    selectedFiles.forEach(file => {
+        formData.append('files', file);
+    });
+    formData.append('directory', currentDirectory);
+    
+    // Show progress
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('uploadBtn').disabled = true;
+    
+    // Upload files
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            document.getElementById('progressFill').style.width = percentComplete + '%';
+            document.getElementById('uploadStatus').textContent = 
+                `Uploading... ${Math.round(percentComplete)}%`;
+        }
+    });
+    
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            showUploadResults(response);
+            loadDirectory(currentDirectory);
+        } else {
+            showNotification('Upload failed', 'error');
+        }
+        
+        document.getElementById('uploadBtn').disabled = false;
+    });
+    
+    xhr.addEventListener('error', function() {
+        showNotification('Upload error occurred', 'error');
+        document.getElementById('uploadBtn').disabled = false;
+    });
+    
+    xhr.open('POST', '/api/files/upload');
+    xhr.send(formData);
+}
+
+// Show upload results
+function showUploadResults(response) {
+    const resultsDiv = document.getElementById('uploadResults');
+    resultsDiv.style.display = 'block';
+    
+    let html = '<h4>Upload Results:</h4>';
+    
+    if (response.success) {
+        html += `<p style="color: var(--accent-green);">
+            <i class="fas fa-check-circle"></i> ${response.uploaded} files uploaded successfully
+        </p>`;
+    }
+    
+    if (response.errors && response.errors.length > 0) {
+        html += '<p style="color: var(--accent-red);">Errors:</p><ul>';
+        response.errors.forEach(error => {
+            html += `<li style="color: var(--accent-red);">${error}</li>`;
+        });
+        html += '</ul>';
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+// Utility functions
+function showLoading() {
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('fileList').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+}
+
+function hideLoading() {
+    document.getElementById('loadingIndicator').style.display = 'none';
+}
+
+function showError(message) {
+    showNotification(message, 'error');
+}
+
+function refreshFileList() {
+    loadDirectory(currentDirectory);
+}
+
+function cleanupTempFiles() {
+    if (confirm('This will delete all temporary files older than 24 hours. Continue?')) {
+        fetch('/api/files/cleanup', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Temporary files cleaned up successfully', 'success');
+                if (currentDirectory === 'temp') {
+                    loadDirectory('temp');
+                }
+            } else {
+                showNotification('Cleanup failed: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Cleanup error: ' + error.message, 'error');
+        });
+    }
+}
+
+// Notification function
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

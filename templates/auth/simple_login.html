@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Simple Login - School Management System{% endblock %}
+
+{% block body_class %}tactical-dark{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Simple Login Page Styles */
+.simple-login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.simple-login-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(255, 111, 0, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 111, 0, 0.05) 0%, transparent 50%);
+    z-index: -1;
+}
+
+.simple-login-container {
+    width: 100%;
+    max-width: 400px;
+    padding: var(--spacing-lg);
+    position: relative;
+    z-index: 1;
+}
+
+.simple-login-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-2xl);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.simple-login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-orange-hover), var(--accent-orange));
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.simple-login-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+}
+
+.simple-login-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.simple-login-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.simple-login-subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.demo-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover));
+    color: var(--bg-primary);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--spacing-md);
+    box-shadow: var(--shadow-glow);
+}
+
+.simple-login-btn {
+    width: 100%;
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover));
+    border: none;
+    border-radius: var(--radius-lg);
+    color: var(--bg-primary);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.simple-login-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.simple-login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+.simple-login-btn:hover::before {
+    left: 100%;
+}
+
+.simple-login-btn:active {
+    transform: translateY(0);
+}
+
+.demo-info {
+    background: rgba(255, 111, 0, 0.1);
+    border: 1px solid rgba(255, 111, 0, 0.3);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    text-align: center;
+}
+
+.demo-info .icon {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-xs);
+    color: var(--accent-orange);
+}
+
+.demo-info .text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.back-link {
+    text-align: center;
+    margin-top: var(--spacing-lg);
+}
+
+.back-link a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.back-link a:hover {
+    color: var(--accent-orange);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .simple-login-container {
+        padding: var(--spacing-md);
+    }
+    
+    .simple-login-card {
+        padding: var(--spacing-xl);
+        border-radius: var(--radius-xl);
+    }
+    
+    .simple-login-title {
+        font-size: 1.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="simple-login-page">
+    <div class="simple-login-container">
+        <div class="simple-login-card card-hover">
+            <div class="simple-login-header">
+                <div class="demo-badge">🚀 Demo Mode</div>
+                <h1 class="simple-login-title">Quick Access</h1>
+                <p class="simple-login-subtitle">Pre-configured demo login</p>
+            </div>
+            
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'error' if category == 'error' else 'success' }} fade-in">
+                            <i class="fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }}"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Simple Login Form -->
+            <form class="simple-login-form" method="POST" action="/auth/login" id="simpleLoginForm">
+                <input type="hidden" name="role" value="admin">
+                
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" class="form-input" id="email" name="email" 
+                           value="demo@school.com" placeholder="Enter email address" required readonly>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="password">Password</label>
+                    <input type="password" class="form-input" id="password" name="password" 
+                           value="school123" placeholder="Enter password" required readonly>
+                </div>
+                
+                <button type="submit" class="simple-login-btn" id="simpleLoginBtn">
+                    <span class="btn-text">Login as Admin</span>
+                </button>
+            </form>
+            
+            <div class="demo-info">
+                <div class="icon">ℹ️</div>
+                <div class="text">
+                    Pre-filled with demo credentials. Just click "Login as Admin" to access the system.
+                </div>
+            </div>
+            
+            <div class="back-link">
+                <a href="{{ url_for('auth.login') }}">← Back to main login</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form submission with loading state
+const simpleLoginForm = document.getElementById('simpleLoginForm');
+const simpleLoginBtn = document.getElementById('simpleLoginBtn');
+
+simpleLoginForm.addEventListener('submit', (e) => {
+    simpleLoginBtn.classList.add('loading');
+    simpleLoginBtn.querySelector('.btn-text').style.opacity = '0';
+    
+    // Add loading spinner
+    simpleLoginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+});
+
+// Auto-dismiss alerts
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.alert').forEach(alert => {
+        setTimeout(() => {
+            alert.style.opacity = '0';
+            alert.style.transform = 'translateY(-10px)';
+            setTimeout(() => alert.remove(), 300);
+        }, 5000);
+    });
+    
+    // Add entrance animation
+    const card = document.querySelector('.simple-login-card');
+    card.style.opacity = '0';
+    card.style.transform = 'scale(0.95)';
+    
+    setTimeout(() => {
+        card.style.transition = 'all 0.6s ease';
+        card.style.opacity = '1';
+        card.style.transform = 'scale(1)';
+    }, 100);
+});
+</script>
+{% endblock %}

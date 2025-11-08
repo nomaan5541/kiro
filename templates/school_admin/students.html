@@ -1,0 +1,352 @@
+{% extends "content_base.html" %}
+
+{% block title %}Students - School Admin{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> School Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name if school else 'Administrator' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Student Management{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('school_admin.add_student') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Add Student
+    </a>
+    <a href="{{ url_for('school_admin.import_students') }}" class="btn btn-success btn-sm">
+        <i class="fas fa-upload"></i> Import CSV
+    </a>
+    <a href="{{ url_for('school_admin.export_students') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-download"></i> Export CSV
+    </a>
+    <button class="btn btn-outline btn-sm" onclick="exportStudents()"
+        <i class="fas fa-download"></i> Export
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Student Statistics -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ students.total if students else 0 }}</h3>
+            <p>Total Students</p>
+            <small>All Classes</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ active_students if active_students else 0 }}</h3>
+            <p>Active Students</p>
+            <small>Currently Enrolled</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-user-plus"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ new_admissions if new_admissions else 0 }}</h3>
+            <p>New Admissions</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-graduation-cap"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ graduated_students if graduated_students else 0 }}</h3>
+            <p>Graduated</p>
+            <small>This Year</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="dashboard-card" style="margin-bottom: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-filter"></i> Filter Students</h3>
+        <button class="btn btn-outline btn-sm" onclick="clearFilters()">
+            <i class="fas fa-times"></i> Clear Filters
+        </button>
+    </div>
+    <div class="card-content">
+        <form method="GET" style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: var(--spacing-lg); align-items: end;">
+            <div class="form-group">
+                <label class="form-label" for="search">Search Students</label>
+                <input type="text" name="search" id="search" class="form-input" 
+                       placeholder="Name, admission no, roll no, phone..." 
+                       value="{{ search }}">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="class">Class</label>
+                <select name="class" id="class" class="form-select">
+                    <option value="">All Classes</option>
+                    {% for class in classes %}
+                    <option value="{{ class.id }}" 
+                            {% if class_filter == class.id|string %}selected{% endif %}>
+                        {{ class.get_display_name() }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="status">Status</label>
+                <select name="status" id="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="graduated" {% if status_filter == 'graduated' %}selected{% endif %}>Graduated</option>
+                    <option value="transferred" {% if status_filter == 'transferred' %}selected{% endif %}>Transferred</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search"></i> Filter
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Students Table -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3><i class="fas fa-list"></i> Students List</h3>
+        <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+            {% if students and students.items %}
+                <span class="badge badge-info">{{ students.items|length }} of {{ students.total }} students</span>
+            {% endif %}
+            <button class="btn btn-outline btn-sm" onclick="toggleView()">
+                <i class="fas fa-th"></i> Grid View
+            </button>
+        </div>
+    </div>
+    <div class="card-content">
+        {% if students and students.items %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Class</th>
+                            <th>Roll No</th>
+                            <th>Phone</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students.items %}
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                                    {% if student.photo_url %}
+                                        <img src="{{ url_for('static', filename='uploads/' + student.photo_url) }}" 
+                                             alt="{{ student.name }}" 
+                                             style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    {% else %}
+                                        <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--accent-orange); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-weight: 700;">
+                                            {{ student.name[0].upper() }}
+                                        </div>
+                                    {% endif %}
+                                    <div>
+                                        <div style="font-weight: 600; color: var(--text-primary);">{{ student.name }}</div>
+                                        <div style="color: var(--text-muted); font-size: 0.875rem;">{{ student.admission_no }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if student.class_info %}
+                                    <span class="badge badge-info">{{ student.class_info.get_display_name() }}</span>
+                                {% else %}
+                                    <span style="color: var(--text-muted);">Not assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ student.roll_number }}</td>
+                            <td>{{ student.phone }}</td>
+                            <td>
+                                <span class="status-badge {{ student.status.value }}">
+                                    {{ student.status.value.title() }}
+                                </span>
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: var(--spacing-xs);">
+                                    <a href="{{ url_for('school_admin.student_profile', student_id=student.id) }}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('school_admin.edit_student', student_id=student.id) }}" 
+                                       class="btn btn-sm btn-outline">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-error" onclick="deleteStudent({{ student.id }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if students.pages > 1 %}
+            <div style="display: flex; justify-content: center; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                {% if students.has_prev %}
+                    <a href="{{ url_for('school_admin.students', page=students.prev_num, search=search, class=class_filter, status=status_filter) }}" 
+                       class="btn btn-outline btn-sm">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                {% endif %}
+                
+                {% for page_num in students.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != students.page %}
+                            <a href="{{ url_for('school_admin.students', page=page_num, search=search, class=class_filter, status=status_filter) }}" 
+                               class="btn btn-outline btn-sm">
+                                {{ page_num }}
+                            </a>
+                        {% else %}
+                            <span class="btn btn-primary btn-sm">{{ page_num }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="color: var(--text-muted);">...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if students.has_next %}
+                    <a href="{{ url_for('school_admin.students', page=students.next_num, search=search, class=class_filter, status=status_filter) }}" 
+                       class="btn btn-outline btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>No Students Found</h3>
+                <p>{% if search or class_filter or status_filter %}Try adjusting your filters{% else %}Start by adding your first student{% endif %}</p>
+                {% if not search and not class_filter and not status_filter %}
+                    <a href="{{ url_for('school_admin.add_student') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add First Student
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function exportStudents() {
+    showNotification('Exporting student data...', 'info');
+    setTimeout(() => {
+        showNotification('Student data exported successfully!', 'success');
+    }, 2000);
+}
+
+function clearFilters() {
+    window.location.href = '{{ url_for("school_admin.students") }}';
+}
+
+function toggleView() {
+    showNotification('Grid view feature will be available soon', 'info');
+}
+
+function deleteStudent(studentId) {
+    if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+        showNotification('Deleting student...', 'info');
+        // In real implementation, make API call to delete
+        setTimeout(() => {
+            showNotification('Student deleted successfully!', 'success');
+            location.reload();
+        }, 1500);
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

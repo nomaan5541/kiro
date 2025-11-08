@@ -1,0 +1,415 @@
+{% extends "content_base.html" %}
+
+{% block title %}Settings - School Admin{% endblock %}
+
+{% block page_title %}School Settings{% endblock %}
+
+{% block page_description %}Manage your school's configuration and preferences{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="resetSettings()">
+        <i class="fas fa-undo"></i> Reset
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="saveSettings()">
+        <i class="fas fa-save"></i> Save Changes
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Settings Navigation -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-lg);">
+        <div style="display: flex; gap: var(--spacing-md); border-bottom: 1px solid var(--color-border); padding-bottom: var(--spacing-md);">
+            <button class="btn btn-outline btn-sm active" onclick="showSettingsTab('general')">
+                <i class="fas fa-cog"></i> General
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="showSettingsTab('academic')">
+                <i class="fas fa-graduation-cap"></i> Academic
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="showSettingsTab('fees')">
+                <i class="fas fa-money-bill-wave"></i> Fees
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="showSettingsTab('notifications')">
+                <i class="fas fa-bell"></i> Notifications
+            </button>
+            <button class="btn btn-outline btn-sm" onclick="showSettingsTab('security')">
+                <i class="fas fa-shield-alt"></i> Security
+            </button>
+        </div>
+    </div>
+
+    <!-- General Settings -->
+    <div id="general-settings" class="settings-tab">
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-school"></i> School Information
+            </h3>
+            
+            <form class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">School Name</label>
+                    <input type="text" class="form-input" value="{{ school.name if school else '' }}" placeholder="Enter school name">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">School Code</label>
+                    <input type="text" class="form-input" value="{{ school.code if school else '' }}" placeholder="Enter school code">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <textarea class="form-input" rows="3" placeholder="Enter school address">{{ school.address if school else '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <input type="tel" class="form-input" value="{{ school.phone if school else '' }}" placeholder="Enter phone number">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-input" value="{{ school.email if school else '' }}" placeholder="Enter email address">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Website</label>
+                    <input type="url" class="form-input" value="{{ school.website if school else '' }}" placeholder="Enter website URL">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Established Year</label>
+                    <input type="number" class="form-input" value="{{ school.established_year if school else '' }}" placeholder="Enter year">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Affiliation</label>
+                    <input type="text" class="form-input" value="{{ school.affiliation if school else '' }}" placeholder="Enter board affiliation">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Academic Settings -->
+    <div id="academic-settings" class="settings-tab" style="display: none;">
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-graduation-cap"></i> Academic Configuration
+            </h3>
+            
+            <form class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Current Academic Year</label>
+                    <input type="text" class="form-input" value="2024-25" placeholder="e.g., 2024-25">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Academic Year Start Month</label>
+                    <select class="form-select">
+                        <option value="4">April</option>
+                        <option value="6">June</option>
+                        <option value="7">July</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Working Days per Week</label>
+                    <select class="form-select">
+                        <option value="5">5 Days</option>
+                        <option value="6" selected>6 Days</option>
+                        <option value="7">7 Days</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Grading System</label>
+                    <select class="form-select">
+                        <option value="percentage">Percentage</option>
+                        <option value="grade">Grade (A, B, C, D)</option>
+                        <option value="cgpa">CGPA</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Attendance Requirement (%)</label>
+                    <input type="number" class="form-input" value="75" min="0" max="100">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Late Arrival Grace Period (minutes)</label>
+                    <input type="number" class="form-input" value="15" min="0">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Fee Settings -->
+    <div id="fees-settings" class="settings-tab" style="display: none;">
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-money-bill-wave"></i> Fee Configuration
+            </h3>
+            
+            <form class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Late Fee Percentage</label>
+                    <input type="number" class="form-input" value="2" min="0" max="100" step="0.1">
+                    <small class="form-help">Percentage charged for late fee payments</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Grace Period (days)</label>
+                    <input type="number" class="form-input" value="7" min="0">
+                    <small class="form-help">Days after due date before late fee applies</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Payment Methods</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Cash
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Bank Transfer
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Online Payment
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Cheque
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Receipt Prefix</label>
+                    <input type="text" class="form-input" value="RCP" placeholder="e.g., RCP">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Auto-generate Receipt Numbers</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked> Enable auto-generation
+                    </label>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Settings -->
+    <div id="notifications-settings" class="settings-tab" style="display: none;">
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-bell"></i> Notification Preferences
+            </h3>
+            
+            <form class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">SMS Notifications</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Fee payment confirmations
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Attendance alerts
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Exam notifications
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Holiday announcements
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Email Notifications</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Monthly reports
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> System alerts
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Marketing updates
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Notification Timing</label>
+                    <select class="form-select">
+                        <option value="immediate">Immediate</option>
+                        <option value="daily" selected>Daily Digest</option>
+                        <option value="weekly">Weekly Summary</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Security Settings -->
+    <div id="security-settings" class="settings-tab" style="display: none;">
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-shield-alt"></i> Security Configuration
+            </h3>
+            
+            <form class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Password Policy</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-xs);">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Minimum 8 characters
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Require uppercase letters
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked> Require numbers
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Require special characters
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Session Timeout (minutes)</label>
+                    <input type="number" class="form-input" value="30" min="5" max="480">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Two-Factor Authentication</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox"> Enable 2FA for admin accounts
+                    </label>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Data Backup</label>
+                    <select class="form-select">
+                        <option value="daily" selected>Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Audit Logging</label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" checked> Log all user activities
+                    </label>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showSettingsTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+        tab.style.display = 'none';
+    });
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab
+    document.getElementById(tabName + '-settings').style.display = 'block';
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+}
+
+function saveSettings() {
+    // Placeholder for save functionality
+    alert('Settings save functionality will be implemented soon.');
+}
+
+function resetSettings() {
+    if (confirm('Are you sure you want to reset all settings to default values?')) {
+        alert('Settings reset functionality will be implemented soon.');
+    }
+}
+</script>
+
+<style>
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin: 0;
+}
+
+.form-help {
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    margin-top: var(--spacing-xs);
+}
+</style>
+{% endblock %}

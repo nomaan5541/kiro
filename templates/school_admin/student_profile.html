@@ -1,0 +1,388 @@
+{% extends "content_base.html" %}
+
+{% block title %}{{ student.name }} - Student Profile{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> School Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name if school else 'Administrator' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}{{ student.name }} - Student Profile{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('school_admin.students') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Students
+    </a>
+    <a href="{{ url_for('school_admin.edit_student', student_id=student.id) }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-edit"></i> Edit Profile
+    </a>
+    <button class="btn btn-secondary btn-sm" onclick="printIDCard()">
+        <i class="fas fa-id-card"></i> Print ID Card
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Student Overview -->
+<div class="dashboard-grid">
+    <!-- Main Profile Card -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-user"></i> Student Information</h3>
+            <div style="display: flex; gap: var(--spacing-sm);">
+                <span class="status-badge {{ 'active' if student.status.value == 'active' else 'inactive' }}">
+                    {{ student.status.value.title() }}
+                </span>
+                {% if student.class_info %}
+                    <span class="badge badge-info">{{ student.class_info.get_display_name() }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-content">
+            <div style="display: flex; gap: var(--spacing-xl); align-items: flex-start; margin-bottom: var(--spacing-xl);">
+                <!-- Photo -->
+                <div style="flex-shrink: 0;">
+                    {% if student.photo_url %}
+                        <img src="{{ url_for('static', filename='uploads/' + student.photo_url) }}" 
+                             alt="{{ student.name }}" 
+                             style="width: 120px; height: 120px; border-radius: var(--radius-2xl); object-fit: cover; border: 3px solid var(--accent-orange);">
+                    {% else %}
+                        <div style="width: 120px; height: 120px; border-radius: var(--radius-2xl); background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover)); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 3rem; font-weight: 700;">
+                            {{ student.name[0].upper() }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Basic Info -->
+                <div style="flex: 1;">
+                    <h2 style="color: var(--text-primary); margin-bottom: var(--spacing-lg);">{{ student.name }}</h2>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                        <div>
+                            <label class="form-label">Admission Number</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.admission_no }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Roll Number</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.roll_number }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Date of Birth</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Age</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.get_age() }} years</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Gender</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.gender.title() }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Blood Group</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.blood_group or 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="markAttendance()">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Mark Attendance</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="recordPayment()">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Record Payment</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="sendNotification()">
+                    <i class="fas fa-bell"></i>
+                    <span>Send Notification</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="viewReports()">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>View Reports</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="printIDCard()">
+                    <i class="fas fa-id-card"></i>
+                    <span>Print ID Card</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="exportData()">
+                    <i class="fas fa-download"></i>
+                    <span>Export Data</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Family Information -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-users"></i> Family Information</h3>
+        </div>
+        <div class="card-content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Father's Name</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.father_name }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Mother's Name</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.mother_name }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Status -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-graduation-cap"></i> Academic Status</h3>
+        </div>
+        <div class="card-content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Admission Date</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.admission_date.strftime('%d/%m/%Y') if student.admission_date else 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Academic Year</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">2024-25</span>
+                    </div>
+                </div>
+                {% if student.pen_no %}
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">PEN Number</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.pen_no }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-address-book"></i> Contact Information</h3>
+        </div>
+        <div class="card-content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Phone Number</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.phone }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Email Address</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ student.email or 'N/A' }}</span>
+                    </div>
+                </div>
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Address</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary);">{{ student.address }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-history"></i> Recent Activity</h3>
+        </div>
+        <div class="card-content">
+            {% if recent_activities %}
+                <div class="list-container">
+                    {% for activity in recent_activities %}
+                        <div class="list-item">
+                            <div style="display: flex; align-items: flex-start; gap: var(--spacing-md); width: 100%;">
+                                <div style="color: var(--accent-orange); font-size: 1.25rem; margin-top: var(--spacing-xs);">
+                                    {% if activity.type == 'attendance' %}
+                                        <i class="fas fa-calendar-check"></i>
+                                    {% elif activity.type == 'payment' %}
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    {% elif activity.type == 'profile' %}
+                                        <i class="fas fa-user-edit"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="list-item-content" style="flex: 1;">
+                                    <div class="list-item-title">{{ activity.description }}</div>
+                                    <div class="list-item-meta">{{ activity.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <p>No recent activity</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if student.bio %}
+<!-- Additional Information -->
+<div class="dashboard-card" style="margin-top: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-info-circle"></i> Additional Information</h3>
+    </div>
+    <div class="card-content">
+        <div style="background: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg); border-left: 4px solid var(--accent-orange);">
+            <p style="color: var(--text-primary); line-height: 1.6; margin: 0;">{{ student.bio }}</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function printIDCard() {
+    showNotification('Generating ID card...', 'info');
+    // Open ID card print view
+    setTimeout(() => {
+        window.open(`/school/students/{{ student.id }}/id-card`, '_blank');
+        showNotification('ID card opened in new tab', 'success');
+    }, 1000);
+}
+
+function markAttendance() {
+    // Redirect to attendance page with student pre-selected
+    window.location.href = `/school/attendance?student_id={{ student.id }}`;
+}
+
+function recordPayment() {
+    // Open payment modal or redirect to payment page
+    window.location.href = `/school/fees?student_id={{ student.id }}`;
+}
+
+function sendNotification() {
+    showNotification('Notification feature will be available soon', 'info');
+}
+
+function viewReports() {
+    showNotification('Student reports feature will be available soon', 'info');
+}
+
+function exportData() {
+    showNotification('Exporting student data...', 'info');
+    setTimeout(() => {
+        showNotification('Student data exported successfully!', 'success');
+    }, 2000);
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

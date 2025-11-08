@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Login - School Management System{% endblock %}
+
+{% block body_class %}tactical-dark{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Login Page Specific Styles */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.login-page::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(255, 111, 0, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 111, 0, 0.05) 0%, transparent 50%);
+    z-index: -1;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--spacing-lg);
+    position: relative;
+    z-index: 1;
+}
+
+.login-card {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-2xl);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.login-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-orange-hover), var(--accent-orange));
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.login-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.login-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.login-subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Role Tabs */
+.role-tabs {
+    display: flex;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius-lg);
+    padding: 4px;
+    margin-bottom: var(--spacing-xl);
+    position: relative;
+}
+
+.role-tab {
+    flex: 1;
+    padding: var(--spacing-md) var(--spacing-sm);
+    text-align: center;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    position: relative;
+    z-index: 2;
+}
+
+.role-tab.active {
+    color: var(--bg-primary);
+    background: var(--accent-orange);
+    box-shadow: var(--shadow-glow);
+}
+
+.role-tab:hover:not(.active) {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.role-icon {
+    display: block;
+    font-size: 1.125rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+/* Form Transitions */
+.form-fields {
+    transition: all 0.2s ease;
+}
+
+.form-fields.fade-out {
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.form-fields.fade-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Login Button */
+.login-btn {
+    width: 100%;
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover));
+    border: none;
+    border-radius: var(--radius-lg);
+    color: var(--bg-primary);
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.login-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.login-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+.login-btn:hover::before {
+    left: 100%;
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+.login-btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.login-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid var(--bg-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .login-container {
+        padding: var(--spacing-md);
+    }
+    
+    .login-card {
+        padding: var(--spacing-xl);
+        border-radius: var(--radius-xl);
+    }
+    
+    .login-title {
+        font-size: 1.5rem;
+    }
+    
+    .role-tab {
+        padding: var(--spacing-sm) var(--spacing-xs);
+        font-size: 0.75rem;
+    }
+    
+    .role-icon {
+        font-size: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-container">
+        <div class="login-card card-hover">
+            <div class="login-header">
+                <h1 class="login-title">School Management System</h1>
+                <p class="login-subtitle">Select your role to continue</p>
+            </div>
+            
+            <!-- Role Tabs -->
+            <div class="role-tabs">
+                <div class="role-tab active" data-role="student">
+                    <span class="role-icon"><i class="fas fa-user-graduate"></i></span>
+                    <span>Student</span>
+                </div>
+                <div class="role-tab" data-role="teacher">
+                    <span class="role-icon"><i class="fas fa-chalkboard-teacher"></i></span>
+                    <span>Teacher</span>
+                </div>
+                <div class="role-tab" data-role="admin">
+                    <span class="role-icon"><i class="fas fa-user-shield"></i></span>
+                    <span>Admin</span>
+                </div>
+            </div>
+            
+            <!-- Login Form -->
+            <form class="login-form" method="POST" id="loginForm">
+                <input type="hidden" name="role" id="roleInput" value="student">
+                
+                <div class="form-fields" id="formFields">
+                    <!-- Student Fields (Default) -->
+                    <div class="student-fields">
+                        <div class="form-group">
+                            <label class="form-label" for="admission_no">Admission Number</label>
+                            <input type="text" class="form-input" id="admission_no" name="admission_no" placeholder="Enter your admission number" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="phone">Phone Number</label>
+                            <input type="tel" class="form-input" id="phone" name="phone" placeholder="Enter your phone number" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="dob">Date of Birth</label>
+                            <input type="date" class="form-input" id="dob" name="dob" required>
+                        </div>
+                    </div>
+                    
+                    <!-- Teacher Fields -->
+                    <div class="teacher-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="teacher_email">Email Address</label>
+                            <input type="email" class="form-input" id="teacher_email" name="email" placeholder="Enter your email address">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="teacher_password">Password</label>
+                            <input type="password" class="form-input" id="teacher_password" name="password" placeholder="Enter your password">
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Fields -->
+                    <div class="admin-fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label" for="admin_email">Email Address</label>
+                            <input type="email" class="form-input" id="admin_email" name="email" placeholder="Enter your email address">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="admin_password">Password</label>
+                            <input type="password" class="form-input" id="admin_password" name="password" placeholder="Enter your password">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="login-btn" id="loginBtn">
+                    <span class="btn-text">Login</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Role switching functionality
+const roleTabs = document.querySelectorAll('.role-tab');
+const roleInput = document.getElementById('roleInput');
+const formFields = document.getElementById('formFields');
+const loginBtn = document.getElementById('loginBtn');
+const loginForm = document.getElementById('loginForm');
+
+// Field groups
+const studentFields = document.querySelector('.student-fields');
+const teacherFields = document.querySelector('.teacher-fields');
+const adminFields = document.querySelector('.admin-fields');
+
+roleTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        const role = tab.dataset.role;
+        switchRole(role);
+    });
+});
+
+function switchRole(role) {
+    // Update active tab
+    roleTabs.forEach(tab => tab.classList.remove('active'));
+    document.querySelector(`[data-role="${role}"]`).classList.add('active');
+    
+    // Update hidden input
+    roleInput.value = role;
+    
+    // Animate form transition
+    formFields.classList.add('fade-out');
+    
+    setTimeout(() => {
+        // Hide all field groups
+        studentFields.style.display = 'none';
+        teacherFields.style.display = 'none';
+        adminFields.style.display = 'none';
+        
+        // Clear all inputs, remove required attributes and disable them so hidden fields are not submitted
+        document.querySelectorAll('.form-input').forEach(input => {
+            input.value = '';
+            input.removeAttribute('required');
+            input.disabled = true; // prevent hidden/unused inputs from being submitted
+        });
+        
+        // Show relevant fields and set required attributes and enable inputs
+        if (role === 'student') {
+            studentFields.style.display = 'block';
+            document.getElementById('admission_no').setAttribute('required', '');
+            document.getElementById('phone').setAttribute('required', '');
+            document.getElementById('dob').setAttribute('required', '');
+            // enable student inputs
+            document.getElementById('admission_no').disabled = false;
+            document.getElementById('phone').disabled = false;
+            document.getElementById('dob').disabled = false;
+        } else if (role === 'teacher') {
+            teacherFields.style.display = 'block';
+            document.getElementById('teacher_email').setAttribute('required', '');
+            document.getElementById('teacher_password').setAttribute('required', '');
+            // enable teacher inputs
+            document.getElementById('teacher_email').disabled = false;
+            document.getElementById('teacher_password').disabled = false;
+        } else if (role === 'admin') {
+            adminFields.style.display = 'block';
+            document.getElementById('admin_email').setAttribute('required', '');
+            document.getElementById('admin_password').setAttribute('required', '');
+            // enable admin inputs
+            document.getElementById('admin_email').disabled = false;
+            document.getElementById('admin_password').disabled = false;
+        }
+        
+        formFields.classList.remove('fade-out');
+        formFields.classList.add('fade-in');
+    }, 150);
+}
+
+// Form submission with loading state and validation
+loginForm.addEventListener('submit', (e) => {
+    const currentRole = roleInput.value;
+    let isValid = true;
+    let errorMessage = '';
+    
+    // Validate based on current role
+    if (currentRole === 'student') {
+        const admissionNo = document.getElementById('admission_no').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const dob = document.getElementById('dob').value.trim();
+        
+        if (!admissionNo || !phone || !dob) {
+            isValid = false;
+            errorMessage = 'All fields are required for student login';
+        }
+    } else if (currentRole === 'teacher') {
+        const emailField = document.getElementById('teacher_email');
+        const passwordField = document.getElementById('teacher_password');
+        
+        if (!emailField || !passwordField) {
+            isValid = false;
+            errorMessage = 'Form fields not properly loaded';
+        } else {
+            const email = emailField.value.trim();
+            const password = passwordField.value.trim();
+            
+            if (!email || !password) {
+                isValid = false;
+                errorMessage = 'Email and password are required for teacher login';
+            }
+        }
+    } else if (currentRole === 'admin') {
+        // For admin, validate presence of enabled admin fields (don't rely on hidden fields)
+        const adminEmail = document.getElementById('admin_email').value.trim();
+        const adminPassword = document.getElementById('admin_password').value.trim();
+        if (!adminEmail || !adminPassword) {
+            isValid = false;
+            errorMessage = 'Email and password are required for admin login';
+        }
+    }
+    
+    if (!isValid) {
+        e.preventDefault();
+        showError(errorMessage);
+        return false;
+    }
+    
+    loginBtn.classList.add('loading');
+    loginBtn.querySelector('.btn-text').style.opacity = '0';
+});
+
+// Show error message using theme alert system
+function showError(message) {
+    // Remove existing error alerts
+    document.querySelectorAll('.alert-error').forEach(alert => alert.remove());
+    
+    // Create new error alert
+    const errorAlert = document.createElement('div');
+    errorAlert.className = 'alert alert-error fade-in';
+    errorAlert.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+    
+    // Insert before role tabs
+    const roleTabs = document.querySelector('.role-tabs');
+    roleTabs.parentNode.insertBefore(errorAlert, roleTabs);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        errorAlert.style.opacity = '0';
+        errorAlert.style.transform = 'translateY(-10px)';
+        setTimeout(() => errorAlert.remove(), 300);
+    }, 5000);
+}
+
+// Initialize form
+switchRole('student');
+</script>
+{% endblock %}

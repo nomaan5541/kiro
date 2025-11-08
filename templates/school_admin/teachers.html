@@ -1,0 +1,266 @@
+{% extends "content_base.html" %}
+
+{% block title %}Teachers - School Admin{% endblock %}
+
+{% block page_title %}Teachers{% endblock %}
+
+{% block page_description %}Manage your school's teaching staff{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('school_admin.add_teacher') }}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> Add Teacher
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Search and Filters -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-lg);">
+        <form method="GET" style="display: flex; gap: var(--spacing-md); align-items: end; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <label class="form-label">Search Teachers</label>
+                <input type="text" name="search" value="{{ search }}" 
+                       placeholder="Name, Employee ID, Phone, Email..." 
+                       class="form-input">
+            </div>
+            
+            <div style="min-width: 150px;">
+                <label class="form-label">Subject</label>
+                <select name="subject" class="form-select">
+                    <option value="">All Subjects</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject.id }}" 
+                                {% if subject_filter == subject.id|string %}selected{% endif %}>
+                            {{ subject.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="min-width: 120px;">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">All Status</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: var(--spacing-xs);">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Search
+                </button>
+                <button type="button" class="btn btn-outline" onclick="clearFilters()">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Teachers List -->
+    {% if teachers.items %}
+        <div class="tactical-card">
+            <div class="table-responsive">
+                <table class="tactical-table">
+                    <thead>
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Subjects</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for teacher in teachers.items %}
+                        <tr>
+                            <td>
+                                <span class="badge badge-outline">{{ teacher.employee_id }}</span>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ teacher.name }}</strong>
+                                    {% if teacher.qualification %}
+                                        <br><small class="text-muted">{{ teacher.qualification }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if teacher.subjects %}
+                                    {% for subject in teacher.subjects[:2] %}
+                                        <span class="badge badge-primary">{{ subject.name }}</span>
+                                    {% endfor %}
+                                    {% if teacher.subjects|length > 2 %}
+                                        <span class="badge badge-outline">+{{ teacher.subjects|length - 2 }} more</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">No subjects assigned</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ teacher.phone }}</td>
+                            <td>{{ teacher.email or '-' }}</td>
+                            <td>
+                                {% if teacher.status.value == 'active' %}
+                                    <span class="badge badge-success">Active</span>
+                                {% else %}
+                                    <span class="badge badge-error">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div style="display: flex; gap: var(--spacing-xs);">
+                                    <button class="btn btn-sm btn-primary" onclick="viewTeacher('{{ teacher.id }}')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline" onclick="editTeacher('{{ teacher.id }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if teachers.pages > 1 %}
+            <div style="display: flex; justify-content: center; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                {% if teachers.has_prev %}
+                    <a href="{{ url_for('school_admin.teachers', page=teachers.prev_num, search=search, subject=subject_filter, status=status_filter) }}" 
+                       class="btn btn-outline btn-sm">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                {% endif %}
+                
+                {% for page_num in teachers.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != teachers.page %}
+                            <a href="{{ url_for('school_admin.teachers', page=page_num, search=search, subject=subject_filter, status=status_filter) }}" 
+                               class="btn btn-outline btn-sm">
+                                {{ page_num }}
+                            </a>
+                        {% else %}
+                            <span class="btn btn-primary btn-sm">{{ page_num }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span>...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if teachers.has_next %}
+                    <a href="{{ url_for('school_admin.teachers', page=teachers.next_num, search=search, subject=subject_filter, status=status_filter) }}" 
+                       class="btn btn-outline btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="tactical-card text-center" style="padding: var(--spacing-xl);">
+            <i class="fas fa-chalkboard-teacher" style="font-size: 3rem; color: var(--color-muted); margin-bottom: var(--spacing-md);"></i>
+            <h3>No Teachers Found</h3>
+            <p>{% if search or subject_filter or status_filter %}Try adjusting your filters{% else %}Start by adding your first teacher{% endif %}</p>
+            {% if not search and not subject_filter and not status_filter %}
+                <a href="{{ url_for('school_admin.add_teacher') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add First Teacher
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- Add Teacher Modal (placeholder) -->
+<div id="addTeacherModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <h3>Add New Teacher</h3>
+        <p>Teacher management functionality will be implemented soon.</p>
+        <div style="display: flex; gap: var(--spacing-sm); justify-content: end; margin-top: var(--spacing-lg);">
+            <button class="btn btn-outline" onclick="closeModal('addTeacherModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function clearFilters() {
+    window.location.href = '{{ url_for("school_admin.teachers") }}';
+}
+
+function showAddTeacherModal() {
+    document.getElementById('addTeacherModal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function viewTeacher(teacherId) {
+    window.location.href = `{{ url_for('school_admin.view_teacher', teacher_id=0) }}`.replace('0', teacherId);
+}
+
+function editTeacher(teacherId) {
+    window.location.href = `{{ url_for('school_admin.edit_teacher', teacher_id=0) }}`.replace('0', teacherId);
+}
+    // Placeholder for edit teacher functionality
+    alert('Edit teacher functionality will be implemented soon.');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

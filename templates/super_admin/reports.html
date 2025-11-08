@@ -1,0 +1,362 @@
+{% extends "content_base.html" %}
+
+{% block title %}System Reports - Super Admin{% endblock %}
+
+{% block page_title %}System Reports & Analytics{% endblock %}
+
+{% block page_description %}Comprehensive system-wide reports and analytics{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('super_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.schools') }}">
+        <i class="fas fa-school"></i> Schools
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.users') }}">
+        <i class="fas fa-users"></i> Users
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('super_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.activity_logs') }}">
+        <i class="fas fa-history"></i> Activity Logs
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="exportReports()">
+        <i class="fas fa-download"></i> Export
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="generateReport()">
+        <i class="fas fa-chart-bar"></i> Generate Report
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Key Performance Indicators -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-primary); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-school"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--color-primary);">{{ stats.total_schools }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Total Schools</p>
+            <small style="color: var(--color-success);">{{ stats.active_schools }} Active</small>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-success); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--color-success);">{{ stats.total_users }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Total Users</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-warning); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-user-graduate"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--color-warning);">{{ stats.total_students }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Total Students</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-info); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-chalkboard-teacher"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--color-info);">{{ stats.total_teachers }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Total Teachers</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-success); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-rupee-sign"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--color-success);">₹{{ "{:,.0f}".format(stats.total_revenue) }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Total Revenue</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-primary); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--color-primary);">{{ "%.1f"|format(stats.monthly_growth) }}%</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Monthly Growth</p>
+        </div>
+    </div>
+
+    <!-- Growth Chart -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-xl);">
+        <h3 style="margin-bottom: var(--spacing-lg);">
+            <i class="fas fa-chart-area"></i> School Growth & Revenue Trends
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-lg);">
+            <div>
+                <canvas id="growthChart" width="400" height="200"></canvas>
+            </div>
+            <div>
+                <h4>Key Metrics</h4>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Subscription Renewal Rate</span>
+                        <span class="badge badge-success">{{ "%.1f"|format(stats.subscription_renewal_rate) }}%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Average Revenue per School</span>
+                        <span class="badge badge-info">₹{{ "{:,.0f}".format(stats.total_revenue / stats.total_schools if stats.total_schools > 0 else 0) }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Monthly Growth Rate</span>
+                        <span class="badge badge-primary">{{ "%.1f"|format(stats.monthly_growth) }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: var(--spacing-lg);">
+        <!-- School Reports -->
+        <div class="tactical-card">
+            <h4 style="margin-bottom: var(--spacing-md);">
+                <i class="fas fa-school"></i> School Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm" onclick="generateSchoolReport('overview')">
+                    <i class="fas fa-chart-pie"></i> School Overview Report
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateSchoolReport('performance')">
+                    <i class="fas fa-trophy"></i> Performance Analysis
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateSchoolReport('subscription')">
+                    <i class="fas fa-calendar-alt"></i> Subscription Status
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateSchoolReport('growth')">
+                    <i class="fas fa-chart-line"></i> Growth Trends
+                </button>
+            </div>
+        </div>
+
+        <!-- Financial Reports -->
+        <div class="tactical-card">
+            <h4 style="margin-bottom: var(--spacing-md);">
+                <i class="fas fa-money-bill-wave"></i> Financial Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm" onclick="generateFinancialReport('revenue')">
+                    <i class="fas fa-coins"></i> Revenue Analysis
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateFinancialReport('subscription_revenue')">
+                    <i class="fas fa-credit-card"></i> Subscription Revenue
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateFinancialReport('payment_trends')">
+                    <i class="fas fa-chart-bar"></i> Payment Trends
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateFinancialReport('forecasting')">
+                    <i class="fas fa-crystal-ball"></i> Revenue Forecasting
+                </button>
+            </div>
+        </div>
+
+        <!-- User Reports -->
+        <div class="tactical-card">
+            <h4 style="margin-bottom: var(--spacing-md);">
+                <i class="fas fa-users"></i> User Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm" onclick="generateUserReport('activity')">
+                    <i class="fas fa-chart-line"></i> User Activity Report
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateUserReport('demographics')">
+                    <i class="fas fa-chart-pie"></i> User Demographics
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateUserReport('engagement')">
+                    <i class="fas fa-heart"></i> Engagement Metrics
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateUserReport('retention')">
+                    <i class="fas fa-user-check"></i> Retention Analysis
+                </button>
+            </div>
+        </div>
+
+        <!-- System Reports -->
+        <div class="tactical-card">
+            <h4 style="margin-bottom: var(--spacing-md);">
+                <i class="fas fa-server"></i> System Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm" onclick="generateSystemReport('performance')">
+                    <i class="fas fa-tachometer-alt"></i> System Performance
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateSystemReport('security')">
+                    <i class="fas fa-shield-alt"></i> Security Audit
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateSystemReport('usage')">
+                    <i class="fas fa-chart-area"></i> Usage Statistics
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="generateSystemReport('errors')">
+                    <i class="fas fa-exclamation-triangle"></i> Error Analysis
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Schools -->
+    {% if recent_schools %}
+    <div class="tactical-card" style="margin-top: var(--spacing-xl);">
+        <h3 style="margin-bottom: var(--spacing-lg);">
+            <i class="fas fa-clock"></i> Recently Registered Schools
+        </h3>
+        
+        <div class="table-responsive">
+            <table class="tactical-table">
+                <thead>
+                    <tr>
+                        <th>School Name</th>
+                        <th>Registration Date</th>
+                        <th>Status</th>
+                        <th>Subscription</th>
+                        <th>Students</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for school in recent_schools %}
+                    <tr>
+                        <td>
+                            <strong>{{ school.name }}</strong>
+                            <br><small class="text-muted">{{ school.email }}</small>
+                        </td>
+                        <td>{{ school.created_at.strftime('%Y-%m-%d') if school.created_at else 'N/A' }}</td>
+                        <td>
+                            {% if school.status.value == 'active' %}
+                                <span class="badge badge-success">Active</span>
+                            {% elif school.status.value == 'suspended' %}
+                                <span class="badge badge-error">Suspended</span>
+                            {% else %}
+                                <span class="badge badge-warning">{{ school.status.value.title() }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if school.subscription_end %}
+                                {% if school.subscription_end > now %}
+                                    <span class="badge badge-success">Valid</span>
+                                    <br><small class="text-muted">Until {{ school.subscription_end.strftime('%Y-%m-%d') }}</small>
+                                {% else %}
+                                    <span class="badge badge-error">Expired</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge badge-warning">No Subscription</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-outline">0</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Initialize chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('growthChart').getContext('2d');
+    
+    // Sample data - replace with actual data from backend
+    const growthData = {{ growth_data | tojson }};
+    
+    // Simple chart implementation (you can replace with Chart.js or similar)
+    drawSimpleChart(ctx, growthData);
+});
+
+function drawSimpleChart(ctx, data) {
+    const canvas = ctx.canvas;
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Set styles
+    ctx.strokeStyle = '#FF6F00';
+    ctx.fillStyle = 'rgba(255, 111, 0, 0.1)';
+    ctx.lineWidth = 2;
+    
+    // Draw placeholder chart
+    ctx.beginPath();
+    ctx.moveTo(50, height - 50);
+    
+    const stepX = (width - 100) / (data.length - 1);
+    const maxSchools = Math.max(...data.map(d => d.schools));
+    
+    data.forEach((point, index) => {
+        const x = 50 + index * stepX;
+        const y = height - 50 - (point.schools / maxSchools) * (height - 100);
+        ctx.lineTo(x, y);
+    });
+    
+    ctx.stroke();
+    
+    // Add labels
+    ctx.fillStyle = '#CCCCCC';
+    ctx.font = '12px monospace';
+    data.forEach((point, index) => {
+        const x = 50 + index * stepX;
+        ctx.fillText(point.month, x - 10, height - 20);
+    });
+}
+
+function generateReport() {
+    alert('Report generation functionality will be implemented soon.');
+}
+
+function exportReports() {
+    alert('Export functionality will be implemented soon.');
+}
+
+function generateSchoolReport(type) {
+    alert(`School ${type} report generation will be implemented soon.`);
+}
+
+function generateFinancialReport(type) {
+    alert(`Financial ${type} report generation will be implemented soon.`);
+}
+
+function generateUserReport(type) {
+    alert(`User ${type} report generation will be implemented soon.`);
+}
+
+function generateSystemReport(type) {
+    alert(`System ${type} report generation will be implemented soon.`);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block body_class %}tactical-dark{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        {% block sidebar %}
+        <div class="sidebar-header">
+            {% block sidebar_header %}
+            <h3><i class="fas fa-graduation-cap"></i> Portal</h3>
+            {% endblock %}
+        </div>
+        
+        <ul class="sidebar-menu">
+            {% block sidebar_menu %}
+            <!-- Override in child templates -->
+            {% endblock %}
+        </ul>
+        {% endblock %}
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block main_content %}
+        <div class="content-header">
+            <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="header-actions">
+                {% block header_actions %}
+                <span class="date-time" id="currentDateTime"></span>
+                {% endblock %}
+            </div>
+        </div>
+
+        {% block dashboard_content %}
+        <!-- Override in child templates -->
+        {% endblock %}
+        {% endblock %}
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Update current date and time
+    function updateDateTime() {
+        const now = new Date();
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        const dateTimeElement = document.getElementById('currentDateTime');
+        if (dateTimeElement) {
+            dateTimeElement.textContent = now.toLocaleDateString('en-US', options);
+        }
+    }
+    
+    updateDateTime();
+    setInterval(updateDateTime, 60000); // Update every minute
+</script>
+{% endblock %}

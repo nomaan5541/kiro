@@ -1,0 +1,1408 @@
+{% extends "content_base.html" %}
+
+{% block title %}Assignments - Teacher{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ teacher.designation if teacher else 'Teacher' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.study_materials') }}">
+        <i class="fas fa-book"></i> Study Materials
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Assignment Management{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="showAssignmentStats()">
+        <i class="fas fa-chart-bar"></i> Statistics
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="showStudyMaterialModal()">
+        <i class="fas fa-book"></i> Add Study Material
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="showCreateAssignmentModal()">
+        <i class="fas fa-plus"></i> Create Assignment
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Assignment Management Styles */
+.assignment-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.assignment-stat-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}.
+assignment-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-blue));
+}
+
+.assignment-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.stat-icon.total { background: linear-gradient(135deg, var(--accent-blue), #2563eb); }
+.stat-icon.published { background: linear-gradient(135deg, var(--accent-green), #16a34a); }
+.stat-icon.draft { background: linear-gradient(135deg, var(--accent-orange), #f59e0b); }
+.stat-icon.overdue { background: linear-gradient(135deg, var(--accent-red), #ef4444); }
+.stat-icon.submissions { background: linear-gradient(135deg, var(--accent-purple), #8b5cf6); }
+.stat-icon.grading { background: linear-gradient(135deg, var(--accent-teal), #06b6d4); }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stat-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.assignment-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-lg);
+}
+
+.tab-btn {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.tab-btn.active {
+    color: var(--accent-orange);
+    border-bottom-color: var(--accent-orange);
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.assignment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.assignment-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.assignment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.assignment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: var(--spacing-md);
+}
+
+.assignment-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 1.1rem;
+}
+
+.assignment-meta {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.assignment-type {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.assignment-type.homework { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.assignment-type.project { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+.assignment-type.study_material { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.assignment-type.worksheet { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+.assignment-status {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.assignment-status.published { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.assignment-status.draft { background: rgba(107, 114, 128, 0.1); color: #6b7280; }
+.assignment-status.archived { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+.assignment-description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: var(--spacing-md);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.assignment-dates {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+}
+
+.date-item {
+    text-align: center;
+}
+
+.date-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.date-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-top: 2px;
+}
+
+.date-value.overdue {
+    color: var(--accent-red);
+}
+
+.assignment-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+}
+
+.stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.stat-number {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+}
+
+.stat-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.assignment-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    justify-content: flex-end;
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-icon:hover {
+    background: var(--accent-orange);
+    color: white;
+    border-color: var(--accent-orange);
+}
+
+.btn-icon.primary {
+    background: var(--accent-blue);
+    color: white;
+    border-color: var(--accent-blue);
+}
+
+.btn-icon.success {
+    background: var(--accent-green);
+    color: white;
+    border-color: var(--accent-green);
+}
+
+.btn-icon.danger {
+    background: var(--accent-red);
+    color: white;
+    border-color: var(--accent-red);
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-header h3 i {
+    color: var(--accent-orange);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-xl);
+}
+
+.modal-footer {
+    padding: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+}
+
+/* Form Styles */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.form-input, .form-select, .form-textarea {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.file-upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.file-upload-area.dragover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 107, 53, 0.1);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--accent-orange);
+    margin-bottom: var(--spacing-md);
+}
+
+.upload-text {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.upload-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.file-list {
+    margin-top: var(--spacing-md);
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-xs);
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.file-icon {
+    color: var(--accent-orange);
+}
+
+.file-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.file-size {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.file-remove {
+    background: none;
+    border: none;
+    color: var(--accent-red);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.file-remove:hover {
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .assignment-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .assignment-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .assignment-dates {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        margin: var(--spacing-md);
+        max-width: calc(100vw - 2 * var(--spacing-md));
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<!-- Assignment Statistics -->
+<div class="assignment-stats-grid">
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon total">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.total_assignments or 0 }}</div>
+        </div>
+        <div class="stat-label">Total Assignments</div>
+        <div class="stat-details">
+            <span>All time</span>
+        </div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon published">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.published or 0 }}</div>
+        </div>
+        <div class="stat-label">Published</div>
+        <div class="stat-details">
+            <span>Active assignments</span>
+        </div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon draft">
+                <i class="fas fa-edit"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.draft or 0 }}</div>
+        </div>
+        <div class="stat-label">Draft</div>
+        <div class="stat-details">
+            <span>Unpublished</span>
+        </div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon overdue">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.overdue or 0 }}</div>
+        </div>
+        <div class="stat-label">Overdue</div>
+        <div class="stat-details">
+            <span>Past due date</span>
+        </div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon submissions">
+                <i class="fas fa-upload"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.total_submissions or 0 }}</div>
+        </div>
+        <div class="stat-label">Submissions</div>
+        <div class="stat-details">
+            <span>Student submissions</span>
+        </div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon grading">
+                <i class="fas fa-clipboard-check"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.pending_grading or 0 }}</div>
+        </div>
+        <div class="stat-label">Pending Grading</div>
+        <div class="stat-details">
+            <span>Awaiting review</span>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Tabs -->
+<div class="assignment-tabs">
+    <button class="tab-btn active" onclick="switchTab('all')">
+        <i class="fas fa-list"></i> All Assignments
+    </button>
+    <button class="tab-btn" onclick="switchTab('published')">
+        <i class="fas fa-check-circle"></i> Published
+    </button>
+    <button class="tab-btn" onclick="switchTab('draft')">
+        <i class="fas fa-edit"></i> Draft
+    </button>
+    <button class="tab-btn" onclick="switchTab('overdue')">
+        <i class="fas fa-exclamation-triangle"></i> Overdue
+    </button>
+</div>
+
+<!-- All Assignments Tab -->
+<div id="allTab" class="tab-content active">
+    <div class="assignment-grid">
+        {% for assignment in assignments %}
+        <div class="assignment-card" data-status="{{ assignment.status.value }}" data-overdue="{{ assignment.is_overdue }}">
+            <div class="assignment-header">
+                <div>
+                    <div class="assignment-title">{{ assignment.title }}</div>
+                    <div class="assignment-meta">
+                        <span class="assignment-type {{ assignment.type.value }}">{{ assignment.type.value.replace('_', ' ').title() }}</span>
+                        <span class="assignment-status {{ assignment.status.value }}">{{ assignment.status.value.title() }}</span>
+                    </div>
+                </div>
+                <div class="assignment-actions">
+                    <button class="btn-icon" onclick="viewAssignment({{ assignment.id }})" title="View Details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn-icon" onclick="editAssignment({{ assignment.id }})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% if assignment.status.value == 'draft' %}
+                    <button class="btn-icon success" onclick="publishAssignment({{ assignment.id }})" title="Publish">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                    {% endif %}
+                    <button class="btn-icon danger" onclick="deleteAssignment({{ assignment.id }})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            {% if assignment.description %}
+            <div class="assignment-description">
+                {{ assignment.description }}
+            </div>
+            {% endif %}
+            
+            <div class="assignment-dates">
+                <div class="date-item">
+                    <div class="date-label">Assigned</div>
+                    <div class="date-value">{{ assignment.assigned_date.strftime('%d/%m/%Y') if assignment.assigned_date else 'N/A' }}</div>
+                </div>
+                <div class="date-item">
+                    <div class="date-label">Due Date</div>
+                    <div class="date-value {{ 'overdue' if assignment.is_overdue else '' }}">
+                        {{ assignment.due_date.strftime('%d/%m/%Y') if assignment.due_date else 'No due date' }}
+                    </div>
+                </div>
+            </div>
+            
+            {% if assignment.status.value == 'published' %}
+            <div class="assignment-stats">
+                {% set stats = assignment.get_submission_stats() %}
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.total_students }}</div>
+                    <div class="stat-text">Students</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.submitted }}</div>
+                    <div class="stat-text">Submitted</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ stats.graded }}</div>
+                    <div class="stat-text">Graded</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ "%.0f"|format(stats.submission_rate) }}%</div>
+                    <div class="stat-text">Rate</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Other tabs will show filtered content -->
+<div id="publishedTab" class="tab-content">
+    <!-- Published assignments will be shown here -->
+</div>
+
+<div id="draftTab" class="tab-content">
+    <!-- Draft assignments will be shown here -->
+</div>
+
+<div id="overdueTab" class="tab-content">
+    <!-- Overdue assignments will be shown here -->
+</div>
+{% endblock %}<!-- Create 
+Assignment Modal -->
+<div id="createAssignmentModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> Create Assignment</h3>
+            <button class="modal-close" onclick="closeModal('createAssignmentModal')">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="createAssignmentForm" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Assignment Title *</label>
+                        <input type="text" name="title" class="form-input" placeholder="Enter assignment title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Assignment Type</label>
+                        <select name="type" class="form-select">
+                            <option value="homework">Homework</option>
+                            <option value="project">Project</option>
+                            <option value="worksheet">Worksheet</option>
+                            <option value="study_material">Study Material</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Class *</label>
+                        <select name="class_id" class="form-select" required>
+                            <option value="">Select Class</option>
+                            {% for class in teacher_classes %}
+                            <option value="{{ class.id }}">{{ class.get_display_name() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Subject</label>
+                        <select name="subject_id" class="form-select">
+                            <option value="">Select Subject</option>
+                            {% for subject in teacher_subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Due Date</label>
+                        <input type="date" name="due_date" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Due Time</label>
+                        <input type="time" name="due_time" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Maximum Marks</label>
+                        <input type="number" name="max_marks" class="form-input" placeholder="Enter maximum marks" min="1">
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: var(--spacing-lg);">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-textarea" rows="4" placeholder="Enter assignment description..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Instructions for Students</label>
+                    <textarea name="instructions" class="form-textarea" rows="4" placeholder="Enter detailed instructions..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Teacher Notes (Private)</label>
+                    <textarea name="teacher_notes" class="form-textarea" rows="3" placeholder="Private notes for your reference..."></textarea>
+                </div>
+                
+                <!-- File Upload Section -->
+                <div class="form-group">
+                    <label class="form-label">Attach Files</label>
+                    <div class="file-upload-area" onclick="document.getElementById('assignmentFiles').click()">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <div class="upload-text">Click to upload files or drag and drop</div>
+                        <div class="upload-hint">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, Images (Max 10MB each)</div>
+                    </div>
+                    <input type="file" id="assignmentFiles" name="files" multiple style="display: none;" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+                    <div id="fileList" class="file-list"></div>
+                </div>
+                
+                <!-- Assignment Settings -->
+                <div class="form-group" style="margin-top: var(--spacing-lg);">
+                    <label class="form-label">Assignment Settings</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" name="allow_submissions" checked>
+                            <span>Allow student submissions</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" name="allow_late_submissions" checked>
+                            <span>Allow late submissions</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" name="publish_immediately">
+                            <span>Publish immediately (students will be notified)</span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('createAssignmentModal')">Cancel</button>
+            <button class="btn btn-secondary" onclick="saveAsDraft()">
+                <i class="fas fa-save"></i> Save as Draft
+            </button>
+            <button class="btn btn-primary" onclick="createAssignment()">
+                <i class="fas fa-plus"></i> Create Assignment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Study Material Modal -->
+<div id="studyMaterialModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-book"></i> Add Study Material</h3>
+            <button class="modal-close" onclick="closeModal('studyMaterialModal')">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="studyMaterialForm" enctype="multipart/form-data">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Material Title *</label>
+                        <input type="text" name="title" class="form-input" placeholder="Enter material title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select">
+                            <option value="notes">Notes</option>
+                            <option value="reference">Reference Material</option>
+                            <option value="presentation">Presentation</option>
+                            <option value="worksheet">Worksheet</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Class *</label>
+                        <select name="class_id" class="form-select" required>
+                            <option value="">Select Class</option>
+                            {% for class in teacher_classes %}
+                            <option value="{{ class.id }}">{{ class.get_display_name() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Subject</label>
+                        <select name="subject_id" class="form-select">
+                            <option value="">Select Subject</option>
+                            {% for subject in teacher_subjects %}
+                            <option value="{{ subject.id }}">{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: var(--spacing-lg);">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-textarea" rows="4" placeholder="Enter material description..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Content</label>
+                    <textarea name="content" class="form-textarea" rows="6" placeholder="Enter material content (optional if uploading files)..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Tags (comma-separated)</label>
+                    <input type="text" name="tags" class="form-input" placeholder="e.g. chapter1, algebra, important">
+                </div>
+                
+                <!-- File Upload Section -->
+                <div class="form-group">
+                    <label class="form-label">Attach Files</label>
+                    <div class="file-upload-area" onclick="document.getElementById('materialFiles').click()">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <div class="upload-text">Click to upload files or drag and drop</div>
+                        <div class="upload-hint">Supported formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, Images (Max 10MB each)</div>
+                    </div>
+                    <input type="file" id="materialFiles" name="files" multiple style="display: none;" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif">
+                    <div id="materialFileList" class="file-list"></div>
+                </div>
+                
+                <!-- Material Settings -->
+                <div class="form-group" style="margin-top: var(--spacing-lg);">
+                    <label class="form-label">Material Settings</label>
+                    <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" name="is_public" checked>
+                            <span>Visible to all students in class</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                            <input type="checkbox" name="is_downloadable" checked>
+                            <span>Allow students to download files</span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('studyMaterialModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createStudyMaterial()">
+                <i class="fas fa-book"></i> Add Material
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Global variables
+let selectedFiles = [];
+let selectedMaterialFiles = [];
+
+// Tab Management
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    if (tabName === 'all') {
+        document.getElementById('allTab').classList.add('active');
+        showAllAssignments();
+    } else {
+        document.getElementById('allTab').classList.add('active');
+        filterAssignments(tabName);
+    }
+    
+    // Add active class to clicked tab button
+    event.target.classList.add('active');
+}
+
+function filterAssignments(filter) {
+    const cards = document.querySelectorAll('.assignment-card');
+    
+    cards.forEach(card => {
+        const status = card.dataset.status;
+        const isOverdue = card.dataset.overdue === 'True';
+        
+        let show = false;
+        
+        switch (filter) {
+            case 'published':
+                show = status === 'published';
+                break;
+            case 'draft':
+                show = status === 'draft';
+                break;
+            case 'overdue':
+                show = isOverdue;
+                break;
+            default:
+                show = true;
+        }
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+function showAllAssignments() {
+    const cards = document.querySelectorAll('.assignment-card');
+    cards.forEach(card => {
+        card.style.display = 'block';
+    });
+}
+
+// Modal Management
+function showCreateAssignmentModal() {
+    document.getElementById('createAssignmentModal').style.display = 'flex';
+    resetAssignmentForm();
+}
+
+function showStudyMaterialModal() {
+    document.getElementById('studyMaterialModal').style.display = 'flex';
+    resetMaterialForm();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function resetAssignmentForm() {
+    document.getElementById('createAssignmentForm').reset();
+    selectedFiles = [];
+    document.getElementById('fileList').innerHTML = '';
+}
+
+function resetMaterialForm() {
+    document.getElementById('studyMaterialForm').reset();
+    selectedMaterialFiles = [];
+    document.getElementById('materialFileList').innerHTML = '';
+}
+
+// File Upload Handling
+document.getElementById('assignmentFiles').addEventListener('change', function(e) {
+    handleFileSelection(e.target.files, 'assignment');
+});
+
+document.getElementById('materialFiles').addEventListener('change', function(e) {
+    handleFileSelection(e.target.files, 'material');
+});
+
+function handleFileSelection(files, type) {
+    const fileArray = type === 'assignment' ? selectedFiles : selectedMaterialFiles;
+    const listContainer = type === 'assignment' ? 'fileList' : 'materialFileList';
+    
+    Array.from(files).forEach(file => {
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+            showNotification(`File ${file.name} is too large. Maximum size is 10MB.`, 'error');
+            return;
+        }
+        
+        fileArray.push(file);
+    });
+    
+    displayFileList(fileArray, listContainer, type);
+}
+
+function displayFileList(files, containerId, type) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    
+    files.forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <i class="fas fa-file file-icon"></i>
+                <div>
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                </div>
+            </div>
+            <button class="file-remove" onclick="removeFile(${index}, '${type}')" type="button">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        container.appendChild(fileItem);
+    });
+}
+
+function removeFile(index, type) {
+    if (type === 'assignment') {
+        selectedFiles.splice(index, 1);
+        displayFileList(selectedFiles, 'fileList', 'assignment');
+    } else {
+        selectedMaterialFiles.splice(index, 1);
+        displayFileList(selectedMaterialFiles, 'materialFileList', 'material');
+    }
+}
+
+// Assignment Management
+function createAssignment() {
+    const form = document.getElementById('createAssignmentForm');
+    const formData = new FormData(form);
+    
+    // Add selected files
+    selectedFiles.forEach(file => {
+        formData.append('files', file);
+    });
+    
+    // Show loading state
+    const createBtn = event.target;
+    createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+    createBtn.disabled = true;
+    
+    fetch(`{{ url_for('teacher.create_assignment') }}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Assignment created successfully!', 'success');
+            closeModal('createAssignmentModal');
+            location.reload(); // Refresh to show new assignment
+        } else {
+            showNotification('Error creating assignment: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while creating assignment.', 'error');
+    })
+    .finally(() => {
+        createBtn.innerHTML = '<i class="fas fa-plus"></i> Create Assignment';
+        createBtn.disabled = false;
+    });
+}
+
+function saveAsDraft() {
+    const form = document.getElementById('createAssignmentForm');
+    const formData = new FormData(form);
+    
+    // Remove publish_immediately flag for draft
+    formData.delete('publish_immediately');
+    
+    // Add selected files
+    selectedFiles.forEach(file => {
+        formData.append('files', file);
+    });
+    
+    fetch(`{{ url_for('teacher.create_assignment') }}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Assignment saved as draft!', 'success');
+            closeModal('createAssignmentModal');
+            location.reload();
+        } else {
+            showNotification('Error saving assignment: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while saving assignment.', 'error');
+    });
+}
+
+function createStudyMaterial() {
+    const form = document.getElementById('studyMaterialForm');
+    const formData = new FormData(form);
+    
+    // Add selected files
+    selectedMaterialFiles.forEach(file => {
+        formData.append('files', file);
+    });
+    
+    // Show loading state
+    const createBtn = event.target;
+    createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    createBtn.disabled = true;
+    
+    fetch(`{{ url_for('teacher.create_study_material') }}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Study material added successfully!', 'success');
+            closeModal('studyMaterialModal');
+        } else {
+            showNotification('Error adding study material: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while adding study material.', 'error');
+    })
+    .finally(() => {
+        createBtn.innerHTML = '<i class="fas fa-book"></i> Add Material';
+        createBtn.disabled = false;
+    });
+}
+
+function viewAssignment(assignmentId) {
+    window.location.href = `{{ url_for('teacher.view_assignment', assignment_id=0) }}`.replace('0', assignmentId);
+}
+
+function editAssignment(assignmentId) {
+    window.location.href = `{{ url_for('teacher.edit_assignment', assignment_id=0) }}`.replace('0', assignmentId);
+}
+
+function publishAssignment(assignmentId) {
+    if (confirm('Are you sure you want to publish this assignment? Students will be notified.')) {
+        fetch(`{{ url_for('teacher.publish_assignment') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ assignment_id: assignmentId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Assignment published successfully!', 'success');
+                location.reload();
+            } else {
+                showNotification('Error publishing assignment: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while publishing assignment.', 'error');
+        });
+    }
+}
+
+function deleteAssignment(assignmentId) {
+    if (confirm('Are you sure you want to delete this assignment? This action cannot be undone.')) {
+        fetch(`{{ url_for('teacher.delete_assignment') }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ assignment_id: assignmentId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Assignment deleted successfully!', 'success');
+                location.reload();
+            } else {
+                showNotification('Error deleting assignment: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('An error occurred while deleting assignment.', 'error');
+        });
+    }
+}
+
+function showAssignmentStats() {
+    showNotification('Assignment statistics feature coming soon.', 'info');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+
+// Drag and Drop Support
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    document.querySelectorAll('.file-upload-area').forEach(area => {
+        area.addEventListener(eventName, preventDefaults, false);
+    });
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    document.querySelectorAll('.file-upload-area').forEach(area => {
+        area.addEventListener(eventName, highlight, false);
+    });
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    document.querySelectorAll('.file-upload-area').forEach(area => {
+        area.addEventListener(eventName, unhighlight, false);
+    });
+});
+
+function highlight(e) {
+    e.target.closest('.file-upload-area').classList.add('dragover');
+}
+
+function unhighlight(e) {
+    e.target.closest('.file-upload-area').classList.remove('dragover');
+}
+
+document.querySelectorAll('.file-upload-area').forEach(area => {
+    area.addEventListener('drop', handleDrop, false);
+});
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    const isAssignment = e.target.closest('#createAssignmentModal');
+    const type = isAssignment ? 'assignment' : 'material';
+    
+    handleFileSelection(files, type);
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Set minimum date for due date inputs
+    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('input[name="due_date"]').forEach(input => {
+        input.min = today;
+    });
+});
+</script>
+{% endblock %}

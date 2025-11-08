@@ -1,0 +1,1383 @@
+{% extends "content_base.html" %}
+
+{% block title %}Fee Management{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Fee Management{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" data-action="navigate" data-url="{{ url_for('school_admin.fee_analytics') }}">
+        <i class="fas fa-chart-line"></i> Analytics
+    </button>
+    <button class="btn btn-secondary btn-sm" onclick="showPaymentModal()">
+        <i class="fas fa-plus"></i> Record Payment
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="showFeeStructureModal()">
+        <i class="fas fa-cog"></i> Fee Structure
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Fee Management Styles */
+.fee-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.fee-stat-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.fee-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+}
+
+.fee-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stat-icon.collected { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.stat-icon.outstanding { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.stat-icon.rate { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.stat-icon.overdue { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.stat-trend {
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.stat-trend.positive { color: var(--accent-green); }
+.stat-trend.negative { color: var(--accent-red); }
+
+.fee-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-lg);
+}
+
+.tab-btn {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.tab-btn.active {
+    color: var(--accent-orange);
+    border-bottom-color: var(--accent-orange);
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.fee-table {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.table-header {
+    background: var(--bg-secondary);
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.table-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.data-table tbody tr:hover {
+    background: var(--bg-secondary);
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge.paid { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.status-badge.partial { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.status-badge.overdue { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.status-badge.pending { background: rgba(107, 114, 128, 0.1); color: #6b7280; }
+
+.payment-mode {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.875rem;
+}
+
+.payment-mode i {
+    color: var(--accent-orange);
+}
+
+.action-buttons {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.btn-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-icon:hover {
+    background: var(--accent-orange);
+    color: white;
+    border-color: var(--accent-orange);
+}
+
+.btn-icon.success:hover {
+    background: var(--accent-green);
+    border-color: var(--accent-green);
+}
+
+.btn-icon.danger:hover {
+    background: var(--accent-red);
+    border-color: var(--accent-red);
+}
+
+/* Progress Bar */
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    min-width: 40px;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-xl);
+}
+
+.modal-footer {
+    padding: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+}
+
+/* Form Styles */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.form-input, .form-select {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .fee-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        align-items: stretch;
+    }
+    
+    .data-table {
+        font-size: 0.875rem;
+    }
+    
+    .modal-content {
+        margin: var(--spacing-md);
+        max-width: calc(100vw - 2 * var(--spacing-md));
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<!-- Fee Statistics -->
+<div class="fee-stats-grid">
+    <div class="fee-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon collected">
+                <i class="fas fa-coins"></i>
+            </div>
+            <div class="stat-value">₹{{ "{:,.0f}".format(fee_analytics.total_collected) }}</div>
+        </div>
+        <div class="stat-label">Total Collected</div>
+        <div class="stat-trend positive">
+            <i class="fas fa-arrow-up"></i>
+            <span>{{ fee_analytics.collection_growth }}% from last month</span>
+        </div>
+    </div>
+    
+    <div class="fee-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon outstanding">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-value">₹{{ "{:,.0f}".format(fee_analytics.total_outstanding) }}</div>
+        </div>
+        <div class="stat-label">Outstanding Dues</div>
+        <div class="stat-trend">
+            <span>{{ fee_analytics.overdue_students }} students overdue</span>
+        </div>
+    </div>
+    
+    <div class="fee-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon rate">
+                <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stat-value">{{ fee_analytics.collection_rate }}%</div>
+        </div>
+        <div class="stat-label">Collection Rate</div>
+        <div class="stat-trend {{ 'positive' if fee_analytics.collection_rate >= 80 else 'negative' }}">
+            <i class="fas fa-{{ 'check' if fee_analytics.collection_rate >= 80 else 'times' }}"></i>
+            <span>{{ 'Good' if fee_analytics.collection_rate >= 80 else 'Needs Attention' }}</span>
+        </div>
+    </div>
+    
+    <div class="fee-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon overdue">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-value">{{ fee_analytics.overdue_students }}</div>
+        </div>
+        <div class="stat-label">Overdue Students</div>
+        <div class="stat-trend">
+            <span>Send reminders</span>
+        </div>
+    </div>
+</div>
+
+<!-- Fee Management Tabs -->
+<div class="fee-tabs">
+    <button class="tab-btn active" onclick="switchTab('payments')">
+        <i class="fas fa-money-bill-wave"></i> Recent Payments
+    </button>
+    <button class="tab-btn" onclick="switchTab('outstanding')">
+        <i class="fas fa-exclamation-triangle"></i> Outstanding Fees
+    </button>
+    <button class="tab-btn" onclick="switchTab('structures')">
+        <i class="fas fa-cog"></i> Fee Structures
+    </button>
+    <button class="tab-btn" onclick="switchTab('defaulters')">
+        <i class="fas fa-user-times"></i> Defaulters
+    </button>
+</div>
+
+<!-- Recent Payments Tab -->
+<div id="paymentsTab" class="tab-content active">
+    <div class="fee-table">
+        <div class="table-header">
+            <div class="table-title">
+                <i class="fas fa-money-bill-wave"></i>
+                Recent Payments
+            </div>
+            <div class="table-actions">
+                <button class="btn btn-outline btn-sm" onclick="exportPayments()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="showPaymentModal()">
+                    <i class="fas fa-plus"></i> Record Payment
+                </button>
+            </div>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Receipt No.</th>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th>Amount</th>
+                    <th>Mode</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in recent_payments %}
+                <tr>
+                    <td><strong>{{ payment.receipt_no }}</strong></td>
+                    <td>
+                        <div>
+                            <div>{{ payment.student.name }}</div>
+                            <small class="text-muted">{{ payment.student.admission_no }}</small>
+                        </div>
+                    </td>
+                    <td>{{ payment.student.class_info.get_display_name() if payment.student.class_info else 'N/A' }}</td>
+                    <td><strong>₹{{ "{:,.2f}".format(payment.amount) }}</strong></td>
+                    <td>
+                        <div class="payment-mode">
+                            <i class="fas fa-{{ 'credit-card' if payment.payment_mode.value == 'online' else 'money-bill' if payment.payment_mode.value == 'cash' else 'check' }}"></i>
+                            {{ payment.payment_mode.value.title() }}
+                        </div>
+                    </td>
+                    <td>{{ payment.payment_date.strftime('%d/%m/%Y') }}</td>
+                    <td>
+                        <span class="status-badge {{ 'paid' if payment.status.value == 'completed' else 'pending' }}">
+                            {{ payment.status.value.title() }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon" data-action="view-receipt" data-payment-id="{{ payment.id }}" title="View Receipt">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-icon" data-action="download-receipt" data-payment-id="{{ payment.id }}" title="Download Receipt">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="btn-icon" data-action="print-receipt" data-payment-id="{{ payment.id }}" title="Print Receipt">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Outstanding Fees Tab -->
+<div id="outstandingTab" class="tab-content">
+    <div class="fee-table">
+        <div class="table-header">
+            <div class="table-title">
+                <i class="fas fa-exclamation-triangle"></i>
+                Outstanding Fees
+            </div>
+            <div class="table-actions">
+                <button class="btn btn-outline btn-sm" onclick="sendBulkReminders()">
+                    <i class="fas fa-bell"></i> Send Reminders
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="exportOutstanding()">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th>Total Fee</th>
+                    <th>Paid</th>
+                    <th>Outstanding</th>
+                    <th>Progress</th>
+                    <th>Due Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status in outstanding_fees %}
+                <tr>
+                    <td>
+                        <div>
+                            <div>{{ status.student.name }}</div>
+                            <small class="text-muted">{{ status.student.admission_no }}</small>
+                        </div>
+                    </td>
+                    <td>{{ status.student.class_info.get_display_name() if status.student.class_info else 'N/A' }}</td>
+                    <td>₹{{ "{:,.2f}".format(status.total_fee) }}</td>
+                    <td>₹{{ "{:,.2f}".format(status.paid_amount) }}</td>
+                    <td><strong>₹{{ "{:,.2f}".format(status.remaining_amount) }}</strong></td>
+                    <td>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" data-width="{{ status.payment_percentage }}"></div>
+                            </div>
+                            <span class="progress-text">{{ "{:.0f}".format(status.payment_percentage) }}%</span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if status.next_due_date %}
+                            <span class="{{ 'text-danger' if status.is_overdue else 'text-warning' }}">
+                                {{ status.next_due_date.strftime('%d/%m/%Y') }}
+                            </span>
+                        {% else %}
+                            <span class="text-muted">No due date</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon success" data-action="record-payment" data-student-id="{{ status.student_id }}" title="Record Payment">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn-icon" data-action="send-reminder" data-student-id="{{ status.student_id }}" title="Send Reminder">
+                                <i class="fas fa-bell"></i>
+                            </button>
+                            <button class="btn-icon" data-action="view-fee-history" data-student-id="{{ status.student_id }}" title="View History">
+                                <i class="fas fa-history"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Fee Structures Tab -->
+<div id="structuresTab" class="tab-content">
+    <div class="fee-table">
+        <div class="table-header">
+            <div class="table-title">
+                <i class="fas fa-cog"></i>
+                Fee Structures
+            </div>
+            <div class="table-actions">
+                <button class="btn btn-primary btn-sm" onclick="showFeeStructureModal()">
+                    <i class="fas fa-plus"></i> Add Structure
+                </button>
+            </div>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Class</th>
+                    <th>Academic Year</th>
+                    <th>Total Fee</th>
+                    <th>Installments</th>
+                    <th>Students</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for structure in fee_structures %}
+                <tr>
+                    <td>{{ structure.class_info.get_display_name() if structure.class_info else 'N/A' }}</td>
+                    <td>{{ structure.academic_year }}</td>
+                    <td><strong>₹{{ "{:,.2f}".format(structure.total_fee) }}</strong></td>
+                    <td>{{ structure.installments }}</td>
+                    <td>{{ structure.student_statuses|length }}</td>
+                    <td>
+                        <span class="status-badge {{ 'paid' if structure.is_active else 'pending' }}">
+                            {{ 'Active' if structure.is_active else 'Inactive' }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon" data-action="edit-fee-structure" data-structure-id="{{ structure.id }}" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon" data-action="view-fee-breakdown" data-structure-id="{{ structure.id }}" title="View Breakdown">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn-icon danger" data-action="delete-fee-structure" data-structure-id="{{ structure.id }}" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Defaulters Tab -->
+<div id="defaultersTab" class="tab-content">
+    <div class="fee-table">
+        <div class="table-header">
+            <div class="table-title">
+                <i class="fas fa-user-times"></i>
+                Fee Defaulters
+            </div>
+            <div class="table-actions">
+                <button class="btn btn-outline btn-sm" onclick="sendDefaulterReminders()">
+                    <i class="fas fa-bell"></i> Send All Reminders
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="exportDefaulters()">
+                    <i class="fas fa-download"></i> Export List
+                </button>
+            </div>
+        </div>
+        
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Student</th>
+                    <th>Class</th>
+                    <th>Amount Due</th>
+                    <th>Days Overdue</th>
+                    <th>Last Payment</th>
+                    <th>Contact</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for defaulter in defaulters %}
+                <tr>
+                    <td>
+                        <div>
+                            <div>{{ defaulter.name }}</div>
+                            <small class="text-muted">{{ defaulter.admission_no }}</small>
+                        </div>
+                    </td>
+                    <td>{{ defaulter.class }}</td>
+                    <td><strong class="text-danger">₹{{ "{:,.2f}".format(defaulter.amount_due) }}</strong></td>
+                    <td>
+                        <span class="status-badge overdue">
+                            {{ defaulter.days_overdue }} days
+                        </span>
+                    </td>
+                    <td>
+                        {% if defaulter.last_payment %}
+                            {{ defaulter.last_payment }}
+                        {% else %}
+                            <span class="text-muted">No payments</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if defaulter.phone %}
+                            <a href="tel:{{ defaulter.phone }}" class="text-primary">{{ defaulter.phone }}</a>
+                        {% else %}
+                            <span class="text-muted">No phone</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-icon success" data-action="record-payment" data-student-id="{{ defaulter.student_id }}" title="Record Payment">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button class="btn-icon" data-action="send-reminder" data-student-id="{{ defaulter.student_id }}" title="Send Reminder">
+                                <i class="fas fa-bell"></i>
+                            </button>
+                            <button class="btn-icon" data-action="call-parent" data-phone="{{ defaulter.phone }}" title="Call Parent">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Payment Modal -->
+<div id="paymentModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> Record Payment</h3>
+            <button class="modal-close" onclick="closeModal('paymentModal')">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="paymentForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Student *</label>
+                        <select class="form-select" id="paymentStudent" required>
+                            <option value="">Select Student</option>
+                            {% for student in students %}
+                            <option value="{{ student.id }}">{{ student.name }} ({{ student.admission_no }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Amount *</label>
+                        <input type="number" class="form-input" id="paymentAmount" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Payment Mode *</label>
+                        <select class="form-select" id="paymentMode" required>
+                            <option value="cash">Cash</option>
+                            <option value="online">Online</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Payment Date *</label>
+                        <input type="date" class="form-input" id="paymentDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Transaction ID</label>
+                        <input type="text" class="form-input" id="transactionId" placeholder="For online payments">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Cheque Number</label>
+                        <input type="text" class="form-input" id="chequeNo" placeholder="For cheque payments">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Remarks</label>
+                    <textarea class="form-input" id="paymentRemarks" rows="3" placeholder="Additional notes..."></textarea>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('paymentModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="recordPaymentSubmit()">
+                <i class="fas fa-save"></i> Record Payment
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Fee Structure Modal -->
+<div id="feeStructureModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-cog"></i> Fee Structure</h3>
+            <button class="modal-close" onclick="closeModal('feeStructureModal')">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="feeStructureForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Class *</label>
+                        <select class="form-select" id="structureClass" required>
+                            <option value="">Select Class</option>
+                            {% for class in classes %}
+                            <option value="{{ class.id }}">{{ class.get_display_name() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Academic Year *</label>
+                        <input type="text" class="form-input" id="academicYear" placeholder="e.g., 2024-25" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Tuition Fee</label>
+                        <input type="number" class="form-input" id="tuitionFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Admission Fee</label>
+                        <input type="number" class="form-input" id="admissionFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Development Fee</label>
+                        <input type="number" class="form-input" id="developmentFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Transport Fee</label>
+                        <input type="number" class="form-input" id="transportFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Library Fee</label>
+                        <input type="number" class="form-input" id="libraryFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Lab Fee</label>
+                        <input type="number" class="form-input" id="labFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Sports Fee</label>
+                        <input type="number" class="form-input" id="sportsFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Other Fee</label>
+                        <input type="number" class="form-input" id="otherFee" step="0.01" min="0">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Installments</label>
+                        <select class="form-select" id="installments">
+                            <option value="1">1 (Full Payment)</option>
+                            <option value="2">2 Installments</option>
+                            <option value="3">3 Installments</option>
+                            <option value="4">4 Installments</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Total Fee *</label>
+                        <input type="number" class="form-input" id="totalFee" step="0.01" min="0" required readonly>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('feeStructureModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveFeeStructure()">
+                <i class="fas fa-save"></i> Save Structure
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Initialize event delegation
+document.addEventListener('DOMContentLoaded', function() {
+    // Set progress bar widths
+    document.querySelectorAll('.progress-fill[data-width]').forEach(function(element) {
+        const width = element.dataset.width;
+        element.style.width = width + '%';
+    });
+    // Event delegation for action buttons
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('[data-action]');
+        if (!button) return;
+        
+        const action = button.dataset.action;
+        const paymentId = button.dataset.paymentId;
+        const studentId = button.dataset.studentId;
+        const structureId = button.dataset.structureId;
+        const phone = button.dataset.phone;
+        
+        switch(action) {
+            case 'view-receipt':
+                viewReceipt(paymentId);
+                break;
+            case 'download-receipt':
+                downloadReceipt(paymentId);
+                break;
+            case 'print-receipt':
+                printReceipt(paymentId);
+                break;
+            case 'record-payment':
+                recordPayment(studentId);
+                break;
+            case 'send-reminder':
+                sendReminder(studentId);
+                break;
+            case 'view-fee-history':
+                viewFeeHistory(studentId);
+                break;
+            case 'edit-fee-structure':
+                editFeeStructure(structureId);
+                break;
+            case 'view-fee-breakdown':
+                viewFeeBreakdown(structureId);
+                break;
+            case 'delete-fee-structure':
+                deleteFeeStructure(structureId);
+                break;
+            case 'call-parent':
+                callParent(phone);
+                break;
+            case 'navigate':
+                window.location.href = button.dataset.url;
+                break;
+        }
+    });
+});
+
+// Tab Management
+function switchTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName + 'Tab').classList.add('active');
+    
+    // Add active class to clicked tab button
+    event.target.classList.add('active');
+}
+
+// Modal Management
+function showPaymentModal(studentId = null) {
+    if (studentId) {
+        document.getElementById('paymentStudent').value = studentId;
+    }
+    document.getElementById('paymentDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('paymentModal').style.display = 'flex';
+}
+
+function showFeeStructureModal() {
+    document.getElementById('feeStructureModal').style.display = 'flex';
+    calculateTotalFee();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    // Reset forms
+    if (modalId === 'paymentModal') {
+        document.getElementById('paymentForm').reset();
+    } else if (modalId === 'feeStructureModal') {
+        document.getElementById('feeStructureForm').reset();
+    }
+}
+
+// Payment Functions
+function recordPayment(studentId) {
+    showPaymentModal(studentId);
+}
+
+function recordPaymentSubmit() {
+    const formData = {
+        student_id: document.getElementById('paymentStudent').value,
+        amount: document.getElementById('paymentAmount').value,
+        payment_mode: document.getElementById('paymentMode').value,
+        payment_date: document.getElementById('paymentDate').value,
+        transaction_id: document.getElementById('transactionId').value,
+        cheque_no: document.getElementById('chequeNo').value,
+        remarks: document.getElementById('paymentRemarks').value
+    };
+    
+    // Validate required fields
+    if (!formData.student_id || !formData.amount || !formData.payment_mode || !formData.payment_date) {
+        showNotification('Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = event.target;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Recording...';
+    submitBtn.disabled = true;
+    
+    fetch('/api/fees/record_payment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Payment recorded successfully!', 'success');
+            closeModal('paymentModal');
+            location.reload();
+        } else {
+            showNotification('Error recording payment: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred while recording payment.', 'error');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Record Payment';
+        submitBtn.disabled = false;
+    });
+}
+
+// Fee Structure Functions
+function calculateTotalFee() {
+    const fees = [
+        'tuitionFee', 'admissionFee', 'developmentFee', 'transportFee',
+        'libraryFee', 'labFee', 'sportsFee', 'otherFee'
+    ];
+    
+    let total = 0;
+    fees.forEach(feeId => {
+        const value = parseFloat(document.getElementById(feeId).value) || 0;
+        total += value;
+    });
+    
+    document.getElementById('totalFee').value = total.toFixed(2);
+}
+
+// Add event listeners for fee calculation
+document.addEventListener('DOMContentLoaded', function() {
+    const feeInputs = [
+        'tuitionFee', 'admissionFee', 'developmentFee', 'transportFee',
+        'libraryFee', 'labFee', 'sportsFee', 'otherFee'
+    ];
+    
+    feeInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('input', calculateTotalFee);
+        }
+    });
+});
+
+function saveFeeStructure() {
+    const formData = {
+        class_id: document.getElementById('structureClass').value,
+        academic_year: document.getElementById('academicYear').value,
+        tuition_fee: document.getElementById('tuitionFee').value || 0,
+        admission_fee: document.getElementById('admissionFee').value || 0,
+        development_fee: document.getElementById('developmentFee').value || 0,
+        transport_fee: document.getElementById('transportFee').value || 0,
+        library_fee: document.getElementById('libraryFee').value || 0,
+        lab_fee: document.getElementById('labFee').value || 0,
+        sports_fee: document.getElementById('sportsFee').value || 0,
+        other_fee: document.getElementById('otherFee').value || 0,
+        total_fee: document.getElementById('totalFee').value,
+        installments: document.getElementById('installments').value
+    };
+    
+    // Validate required fields
+    if (!formData.class_id || !formData.academic_year || !formData.total_fee) {
+        showNotification('Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = event.target;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    submitBtn.disabled = true;
+    
+    fetch('/api/fees/create_structure', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Fee structure saved successfully!', 'success');
+            closeModal('feeStructureModal');
+            location.reload();
+        } else {
+            showNotification('Error saving fee structure: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred while saving fee structure.', 'error');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Structure';
+        submitBtn.disabled = false;
+    });
+}
+
+// Receipt Functions
+function viewReceipt(paymentId) {
+    window.open(`/api/fees/receipt/${paymentId}`, '_blank');
+}
+
+function downloadReceipt(paymentId) {
+    window.location.href = `/api/fees/receipt/${paymentId}/download`;
+}
+
+function printReceipt(paymentId) {
+    const printWindow = window.open(`/api/fees/receipt/${paymentId}`, '_blank');
+    printWindow.onload = function() {
+        printWindow.print();
+    };
+}
+
+// Reminder Functions
+function sendReminder(studentId) {
+    fetch('/api/fees/send_reminder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ student_ids: [studentId] })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Reminder sent successfully!', 'success');
+        } else {
+            showNotification('Error sending reminder: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred while sending reminder.', 'error');
+    });
+}
+
+function sendBulkReminders() {
+    if (confirm('Send fee reminders to all students with outstanding dues?')) {
+        fetch('/api/fees/send_bulk_reminders', {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(`Reminders sent to ${data.sent_count} students!`, 'success');
+            } else {
+                showNotification('Error sending reminders: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('An error occurred while sending reminders.', 'error');
+        });
+    }
+}
+
+// Export Functions
+function exportPayments() {
+    window.location.href = '/api/fees/export/payments';
+}
+
+function exportOutstanding() {
+    window.location.href = '/api/fees/export/outstanding';
+}
+
+function exportDefaulters() {
+    window.location.href = '/api/fees/export/defaulters';
+}
+
+// Utility Functions
+function callParent(phone) {
+    if (phone) {
+        window.location.href = `tel:${phone}`;
+    }
+}
+
+function showFeeAnalytics() {
+    showNotification('Fee analytics feature coming soon.', 'info');
+}
+
+function viewFeeHistory(studentId) {
+    window.location.href = `/students/${studentId}/fee_history`;
+}
+
+function editFeeStructure(structureId) {
+    showNotification('Edit fee structure feature coming soon.', 'info');
+}
+
+function viewFeeBreakdown(structureId) {
+    showNotification('Fee breakdown view coming soon.', 'info');
+}
+
+function deleteFeeStructure(structureId) {
+    if (confirm('Are you sure you want to delete this fee structure? This action cannot be undone.')) {
+        fetch('/api/fees/delete_structure', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ structure_id: structureId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Fee structure deleted successfully.', 'success');
+                location.reload();
+            } else {
+                showNotification('Error deleting fee structure: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('An error occurred while deleting fee structure.', 'error');
+        });
+    }
+}
+
+// Notification function
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

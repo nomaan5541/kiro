@@ -1,0 +1,326 @@
+{% extends "content_base.html" %}
+
+{% block title %}Notifications - Student Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Notifications{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-secondary btn-sm" onclick="markAllAsRead()">
+        <i class="fas fa-check-double"></i> Mark All Read
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="filterNotifications('unread')">
+        <i class="fas fa-filter"></i> Unread Only
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Notification Statistics -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl); grid-template-columns: repeat(4, 1fr);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-bell"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ notifications.total if notifications else 0 }}</h3>
+            <p>Total Notifications</p>
+            <small>All Time</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-bell-slash"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ notifications.items|selectattr('status.value', 'equalto', 'unread')|list|length if notifications else 0 }}</h3>
+            <p>Unread</p>
+            <small>Pending</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-info-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ notifications.items|selectattr('notification_type.value', 'equalto', 'general')|list|length if notifications else 0 }}</h3>
+            <p>General</p>
+            <small>Information</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--error), #EF4444);">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ notifications.items|selectattr('notification_type.value', 'equalto', 'attendance_alert')|list|length if notifications else 0 }}</h3>
+            <p>Alerts</p>
+            <small>Important</small>
+        </div>
+    </div>
+</div>
+
+<!-- Notifications List -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3><i class="fas fa-list"></i> All Notifications</h3>
+        {% if notifications and notifications.pages > 1 %}
+            <div class="pagination">
+                {% if notifications.has_prev %}
+                    <a href="{{ url_for('student.notifications', page=notifications.prev_num) }}" class="pagination-btn">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                {% endif %}
+                
+                <span class="pagination-info">
+                    Page {{ notifications.page }} of {{ notifications.pages }}
+                </span>
+                
+                {% if notifications.has_next %}
+                    <a href="{{ url_for('student.notifications', page=notifications.next_num) }}" class="pagination-btn">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+    <div class="card-content">
+        {% if notifications and notifications.items %}
+            <div class="list-container">
+                {% for notification in notifications.items %}
+                    <div class="list-item notification-item {{ 'unread' if notification.status.value == 'unread' else '' }}" data-notification-id="{{ notification.id }}">
+                        <div style="display: flex; align-items: flex-start; gap: var(--spacing-md); width: 100%;">
+                            <div class="notification-icon" style="margin-top: var(--spacing-xs);">
+                                {% if notification.notification_type.value == 'attendance_alert' %}
+                                    <i class="fas fa-calendar-times" style="color: var(--error);"></i>
+                                {% elif notification.notification_type.value == 'payment_confirmation' %}
+                                    <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                                {% elif notification.notification_type.value == 'fee_reminder' %}
+                                    <i class="fas fa-money-bill-wave" style="color: var(--warning);"></i>
+                                {% elif notification.notification_type.value == 'assignment_posted' %}
+                                    <i class="fas fa-tasks" style="color: var(--info);"></i>
+                                {% else %}
+                                    <i class="fas fa-info-circle" style="color: var(--accent-orange);"></i>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="list-item-content" style="flex: 1;">
+                                <div class="list-item-title" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                    <span>{{ notification.message }}</span>
+                                    {% if notification.status.value == 'unread' %}
+                                        <span class="badge badge-warning" style="margin-left: var(--spacing-md);">New</span>
+                                    {% endif %}
+                                </div>
+                                <div class="list-item-meta">
+                                    <span><i class="fas fa-clock"></i> {{ notification.created_at.strftime('%d %b %Y, %H:%M') }}</span>
+                                    <span class="badge badge-{{ 'info' if notification.notification_type.value == 'general' else 'warning' if notification.notification_type.value == 'fee_reminder' else 'error' if notification.notification_type.value == 'attendance_alert' else 'success' }}">
+                                        {{ notification.notification_type.value.replace('_', ' ').title() }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="list-item-actions">
+                                {% if notification.status.value == 'unread' %}
+                                    <button class="btn btn-sm btn-primary" onclick="markAsRead({{ notification.id }})">
+                                        <i class="fas fa-check"></i> Mark Read
+                                    </button>
+                                {% else %}
+                                    <span class="status-badge completed">
+                                        <i class="fas fa-check"></i> Read
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            {% if notifications.pages > 1 %}
+                <div class="pagination" style="margin-top: var(--spacing-lg); justify-content: center;">
+                    {% if notifications.has_prev %}
+                        <a href="{{ url_for('student.notifications', page=1) }}" class="pagination-btn">First</a>
+                        <a href="{{ url_for('student.notifications', page=notifications.prev_num) }}" class="pagination-btn">Previous</a>
+                    {% endif %}
+                    
+                    {% for page_num in notifications.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != notifications.page %}
+                                <a href="{{ url_for('student.notifications', page=page_num) }}" class="pagination-btn">{{ page_num }}</a>
+                            {% else %}
+                                <span class="pagination-btn active">{{ page_num }}</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="pagination-btn">...</span>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if notifications.has_next %}
+                        <a href="{{ url_for('student.notifications', page=notifications.next_num) }}" class="pagination-btn">Next</a>
+                        <a href="{{ url_for('student.notifications', page=notifications.pages) }}" class="pagination-btn">Last</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-bell-slash"></i>
+                <h3>No Notifications</h3>
+                <p>You don't have any notifications at the moment.</p>
+                <small>New notifications will appear here when available.</small>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+.notification-item.unread {
+    background-color: rgba(255, 111, 0, 0.05);
+    border-left: 3px solid var(--accent-orange);
+}
+
+.notification-item.unread .list-item-title {
+    font-weight: 600;
+}
+
+.pagination-info {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function markAsRead(notificationId) {
+    // Simulate marking as read (you would implement the actual API call)
+    const notificationItem = document.querySelector(`[data-notification-id="${notificationId}"]`);
+    if (notificationItem) {
+        notificationItem.classList.remove('unread');
+        
+        // Update the action button
+        const actionButton = notificationItem.querySelector('.list-item-actions button');
+        if (actionButton) {
+            actionButton.outerHTML = `
+                <span class="status-badge completed">
+                    <i class="fas fa-check"></i> Read
+                </span>
+            `;
+        }
+        
+        // Remove the "New" badge
+        const newBadge = notificationItem.querySelector('.badge-warning');
+        if (newBadge) {
+            newBadge.remove();
+        }
+    }
+    
+    // Show success message
+    showNotification('Notification marked as read', 'success');
+}
+
+function markAllAsRead() {
+    const unreadItems = document.querySelectorAll('.notification-item.unread');
+    unreadItems.forEach(item => {
+        const notificationId = item.getAttribute('data-notification-id');
+        markAsRead(notificationId);
+    });
+    
+    if (unreadItems.length > 0) {
+        showNotification(`${unreadItems.length} notifications marked as read`, 'success');
+    } else {
+        showNotification('No unread notifications found', 'info');
+    }
+}
+
+function filterNotifications(filter) {
+    if (filter === 'unread') {
+        const url = new URL(window.location);
+        url.searchParams.set('filter', 'unread');
+        window.location.href = url.toString();
+    }
+}
+
+function showNotification(message, type) {
+    // Create a temporary notification
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 300px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}

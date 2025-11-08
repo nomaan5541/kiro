@@ -1,0 +1,326 @@
+{% extends "content_base.html" %}
+
+{% block title %}Mark Attendance{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> School Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name if school else 'Administrator' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Mark Attendance{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+    <form method="GET" style="display: flex; gap: var(--spacing-sm); align-items: end;">
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label" for="date">Date</label>
+            <input type="date" name="date" id="date" class="form-input"
+                value="{{ selected_date.strftime('%Y-%m-%d') if selected_date else '' }}">
+        </div>
+        <div class="form-group" style="margin: 0;">
+            <label class="form-label" for="class_id">Class</label>
+            <select name="class_id" id="class_id" class="form-select">
+                <option value="">Select Class</option>
+                {% for class in classes %}
+                <option value="{{ class.id }}" {{ 'selected' if class.id==selected_class_id else '' }}>
+                    {{ class.get_display_name() }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-search"></i> Load Students
+        </button>
+    </form>
+</div>
+{% endblock %}
+
+{% block content_body %}
+
+{% if students %}
+<!-- Attendance Form -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h3><i class="fas fa-calendar-check"></i> {{ selected_class.get_display_name() if selected_class else 'Class' }} Attendance</h3>
+        <div style="display: flex; gap: var(--spacing-sm);">
+            <span class="badge badge-info">{{ students|length }} students</span>
+            <span class="badge badge-secondary">{{ selected_date.strftime('%A, %B %d, %Y') if selected_date else 'Today' }}</span>
+        </div>
+    </div>
+    <div class="card-content">
+        <form method="POST" id="attendanceForm">
+            <input type="hidden" name="date" value="{{ selected_date.strftime('%Y-%m-%d') if selected_date else '' }}">
+            <input type="hidden" name="class_id" value="{{ selected_class_id }}">
+
+            <!-- Bulk Actions -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-xl); padding-bottom: var(--spacing-lg); border-bottom: 1px solid var(--border-color);">
+                <div>
+                    <p style="color: var(--text-muted); margin: 0;">Mark attendance for {{ selected_date.strftime('%A, %B %d, %Y') if selected_date else 'today' }}</p>
+                </div>
+                <div style="display: flex; gap: var(--spacing-sm);">
+                    <button type="button" onclick="markAllPresent()" class="btn btn-success btn-sm">
+                        <i class="fas fa-check-circle"></i> Mark All Present
+                    </button>
+                    <button type="button" onclick="clearAll()" class="btn btn-outline btn-sm">
+                        <i class="fas fa-times-circle"></i> Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Students Grid -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+                {% for student in students %}
+                <div class="attendance-card" style="background: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg); border: 1px solid var(--border-color); transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; margin-bottom: var(--spacing-md);">
+                        {% if student.photo_url %}
+                            <img src="{{ url_for('static', filename='uploads/' + student.photo_url) }}" 
+                                 alt="{{ student.name }}" 
+                                 style="width: 48px; height: 48px; border-radius: var(--radius-full); object-fit: cover; margin-right: var(--spacing-md); border: 2px solid var(--accent-orange);">
+                        {% else %}
+                            <div style="width: 48px; height: 48px; border-radius: var(--radius-full); background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover)); display: flex; align-items: center; justify-content: center; margin-right: var(--spacing-md); color: var(--bg-primary); font-weight: 700; font-size: 1.25rem;">
+                                {{ student.name[0].upper() }}
+                            </div>
+                        {% endif %}
+                        <div>
+                            <h4 style="color: var(--text-primary); font-weight: 600; margin: 0;">{{ student.name }}</h4>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin: 0;">Roll: {{ student.roll_number }}</p>
+                        </div>
+                    </div>
+
+                    <div class="attendance-options" style="display: flex; gap: var(--spacing-md); justify-content: space-between;">
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: var(--spacing-sm); border-radius: var(--radius-md); transition: background-color 0.2s ease;" class="attendance-option present">
+                            <input type="radio" name="attendance_{{ student.id }}" value="present" 
+                                   style="margin-right: var(--spacing-xs); accent-color: var(--success);" 
+                                   {{ 'checked' if attendance_data.get(student.id)=='present' else '' }}>
+                            <i class="fas fa-check-circle" style="color: var(--success); margin-right: var(--spacing-xs);"></i>
+                            <span style="color: var(--success); font-weight: 600; font-size: 0.875rem;">Present</span>
+                        </label>
+                        
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: var(--spacing-sm); border-radius: var(--radius-md); transition: background-color 0.2s ease;" class="attendance-option absent">
+                            <input type="radio" name="attendance_{{ student.id }}" value="absent" 
+                                   style="margin-right: var(--spacing-xs); accent-color: var(--error);" 
+                                   {{ 'checked' if attendance_data.get(student.id)=='absent' else '' }}>
+                            <i class="fas fa-times-circle" style="color: var(--error); margin-right: var(--spacing-xs);"></i>
+                            <span style="color: var(--error); font-weight: 600; font-size: 0.875rem;">Absent</span>
+                        </label>
+                        
+                        <label style="display: flex; align-items: center; cursor: pointer; padding: var(--spacing-sm); border-radius: var(--radius-md); transition: background-color 0.2s ease;" class="attendance-option leave">
+                            <input type="radio" name="attendance_{{ student.id }}" value="leave" 
+                                   style="margin-right: var(--spacing-xs); accent-color: var(--warning);" 
+                                   {{ 'checked' if attendance_data.get(student.id)=='leave' else '' }}>
+                            <i class="fas fa-calendar-times" style="color: var(--warning); margin-right: var(--spacing-xs);"></i>
+                            <span style="color: var(--warning); font-weight: 600; font-size: 0.875rem;">Leave</span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Submit Button -->
+            <div style="text-align: center;">
+                <button type="submit" class="btn btn-primary" style="padding: var(--spacing-md) var(--spacing-2xl);">
+                    <i class="fas fa-save"></i> Save Attendance
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<!-- No Students Message -->
+<div class="dashboard-card">
+    <div class="card-content">
+        <div class="empty-state">
+            <i class="fas fa-calendar-check"></i>
+            <h3>No Students Found</h3>
+            <p>Please select a date and class to load students for attendance marking.</p>
+            <div style="margin-top: var(--spacing-lg);">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">
+                    <i class="fas fa-info-circle"></i> 
+                    Use the date and class filters above to get started.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function markAllPresent() {
+    const presentRadios = document.querySelectorAll('input[type="radio"][value="present"]');
+    presentRadios.forEach(radio => {
+        radio.checked = true;
+        updateAttendanceCardStyle(radio);
+    });
+    showNotification('All students marked as present', 'success');
+}
+
+function clearAll() {
+    const allRadios = document.querySelectorAll('input[type="radio"]');
+    allRadios.forEach(radio => {
+        radio.checked = false;
+    });
+    
+    // Reset card styles
+    const attendanceCards = document.querySelectorAll('.attendance-card');
+    attendanceCards.forEach(card => {
+        card.style.borderColor = 'var(--border-color)';
+        card.style.background = 'var(--bg-tertiary)';
+    });
+    
+    showNotification('All attendance cleared', 'info');
+}
+
+function updateAttendanceCardStyle(radio) {
+    const card = radio.closest('.attendance-card');
+    if (!card) return;
+    
+    if (radio.value === 'present') {
+        card.style.borderColor = 'var(--success)';
+        card.style.background = 'rgba(76, 175, 80, 0.1)';
+    } else if (radio.value === 'absent') {
+        card.style.borderColor = 'var(--error)';
+        card.style.background = 'rgba(244, 67, 54, 0.1)';
+    } else if (radio.value === 'leave') {
+        card.style.borderColor = 'var(--warning)';
+        card.style.background = 'rgba(255, 193, 7, 0.1)';
+    }
+}
+
+// Add event listeners for radio buttons
+document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name^="attendance_"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                updateAttendanceCardStyle(this);
+            }
+        });
+        
+        // Set initial styles for pre-checked radios
+        if (radio.checked) {
+            updateAttendanceCardStyle(radio);
+        }
+    });
+});
+
+// Form validation
+document.getElementById('attendanceForm')?.addEventListener('submit', function(e) {
+    const students = {{ students|length if students else 0 }};
+    let markedCount = 0;
+
+    // Count checked radio buttons
+    const radios = document.querySelectorAll('input[name^="attendance_"]:checked');
+    markedCount = radios.length;
+
+    if (markedCount === 0) {
+        e.preventDefault();
+        showNotification('Please mark attendance for at least one student', 'error');
+        return;
+    }
+
+    if (markedCount < students) {
+        if (!confirm(`You have marked attendance for ${markedCount} out of ${students} students. Continue?`)) {
+            e.preventDefault();
+            return;
+        }
+    }
+    
+    showNotification('Saving attendance...', 'info');
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+
+<style>
+.attendance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.attendance-option:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.attendance-option input[type="radio"]:checked + i {
+    transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+    .attendance-options {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .attendance-option {
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,354 @@
+{% extends "form_base.html" %}
+
+{% block title %}Create Assignment - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Create New Assignment{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('teacher.assignments') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Assignments
+    </a>
+    <button class="btn btn-secondary btn-sm" onclick="saveDraft()">
+        <i class="fas fa-save"></i> Save Draft
+    </button>
+</div>
+{% endblock %}
+
+{% block form_content %}
+<form id="assignmentForm" method="POST" enctype="multipart/form-data">
+    <div class="dashboard-grid">
+        <!-- Assignment Details -->
+        <div class="dashboard-card" style="grid-column: span 2;">
+            <div class="card-header">
+                <h3><i class="fas fa-edit"></i> Assignment Details</h3>
+                <span class="badge badge-info">Required Fields</span>
+            </div>
+            <div class="card-content">
+                <div class="form-group">
+                    <label class="form-label" for="title">Assignment Title *</label>
+                    <input type="text" class="form-input" id="title" name="title" placeholder="Enter assignment title" required>
+                    <small style="color: var(--text-muted);">Give your assignment a clear, descriptive title</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="description">Description</label>
+                    <textarea class="form-textarea" id="description" name="description" rows="4" placeholder="Describe the assignment objectives and requirements"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="instructions">Instructions</label>
+                    <textarea class="form-textarea" id="instructions" name="instructions" rows="6" placeholder="Provide detailed instructions for students"></textarea>
+                    <small style="color: var(--text-muted);">Be specific about what students need to do</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="file">Attachment (Optional)</label>
+                    <div style="position: relative;">
+                        <input type="file" class="form-input" id="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.jpg,.png">
+                        <small style="color: var(--text-muted);">Supported formats: PDF, DOC, DOCX, PPT, PPTX, TXT, JPG, PNG (Max: 10MB)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Assignment Settings -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3><i class="fas fa-cog"></i> Assignment Settings</h3>
+            </div>
+            <div class="card-content">
+                <div class="form-group">
+                    <label class="form-label" for="class_id">Select Class *</label>
+                    <select class="form-select" id="class_id" name="class_id" required>
+                        <option value="">Choose a class</option>
+                        {% if assigned_classes %}
+                            {% for class_info in assigned_classes %}
+                                <option value="{{ class_info.id }}" {% if request.args.get('class_id') == class_info.id|string %}selected{% endif %}>
+                                    {{ class_info.get_display_name() }}
+                                </option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="subject_id">Subject</label>
+                    <select class="form-select" id="subject_id" name="subject_id">
+                        <option value="">Select subject</option>
+                        {% if subjects %} 
+                            {% for subject in subjects %}
+                                <option value="{{ subject.id }}">{{ subject.name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="assigned_date">Assigned Date *</label>
+                    <input type="date" class="form-input" id="assigned_date" name="assigned_date" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="due_date">Due Date</label>
+                    <input type="date" class="form-input" id="due_date" name="due_date">
+                    <small style="color: var(--text-muted);">Leave empty for no due date</small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Assignment Type</label>
+                    <div style="display: grid; gap: var(--spacing-sm);">
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                            <input type="radio" name="assignment_type" value="homework" class="form-radio" checked>
+                            <span>Homework</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                            <input type="radio" name="assignment_type" value="project" class="form-radio">
+                            <span>Project</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                            <input type="radio" name="assignment_type" value="test" class="form-radio">
+                            <span>Test/Quiz</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: var(--spacing-sm); cursor: pointer;">
+                            <input type="radio" name="assignment_type" value="reading" class="form-radio">
+                            <span>Reading</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Priority Level</label>
+                    <select class="form-select" name="priority">
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Preview -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3><i class="fas fa-eye"></i> Preview</h3>
+                <button type="button" class="btn btn-outline btn-sm" onclick="refreshPreview()">
+                    <i class="fas fa-refresh"></i> Refresh
+                </button>
+            </div>
+            <div class="card-content">
+                <div id="assignmentPreview" style="background-color: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg);">
+                    <div style="color: var(--text-muted); text-align: center; padding: var(--spacing-xl);">
+                        <i class="fas fa-eye" style="font-size: 2rem; margin-bottom: var(--spacing-md);"></i>
+                        <p>Preview will appear here as you fill the form</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Student Count -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3><i class="fas fa-users"></i> Students</h3>
+            </div>
+            <div class="card-content">
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--accent-orange); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);" id="studentCount">
+                        0
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Students will receive this assignment</div>
+                </div>
+                
+                <div style="margin-top: var(--spacing-lg);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                        <span style="color: var(--text-muted); font-size: 0.875rem;">Class Capacity</span>
+                        <span style="color: var(--text-primary); font-weight: 600;" id="classCapacity">-</span>
+                    </div>
+                    <div class="progress-bar" style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                        <div id="capacityProgress" style="height: 100%; background: var(--accent-orange); width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Form Actions -->
+    <div style="margin-top: var(--spacing-xl); text-align: center;">
+        <button type="button" class="btn btn-outline" onclick="window.history.back()">
+            <i class="fas fa-times"></i> Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" style="margin-left: var(--spacing-md);">
+            <i class="fas fa-plus"></i> Create Assignment
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Form submission
+document.getElementById('assignmentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    showNotification('Creating assignment...', 'info');
+    
+    // Simulate API call
+    setTimeout(() => {
+        showNotification('Assignment created successfully!', 'success');
+        setTimeout(() => {
+            window.location.href = '{{ url_for("teacher.assignments") }}';
+        }, 1500);
+    }, 2000);
+});
+
+// Class selection change
+document.getElementById('class_id').addEventListener('change', function() {
+    const classId = this.value;
+    if (classId) {
+        // Update student count (mock data)
+        const studentCount = Math.floor(Math.random() * 30) + 20;
+        const capacity = 35;
+        
+        document.getElementById('studentCount').textContent = studentCount;
+        document.getElementById('classCapacity').textContent = capacity;
+        document.getElementById('capacityProgress').style.width = (studentCount / capacity * 100) + '%';
+        
+        // Load subjects for this class
+        loadClassSubjects(classId);
+    } else {
+        document.getElementById('studentCount').textContent = '0';
+        document.getElementById('classCapacity').textContent = '-';
+        document.getElementById('capacityProgress').style.width = '0%';
+    }
+});
+
+function loadClassSubjects(classId) {
+    // In real implementation, make API call to get subjects
+    const subjectSelect = document.getElementById('subject_id');
+    subjectSelect.innerHTML = '<option value="">Select subject</option>';
+    
+    // Mock subjects
+    const subjects = [
+        {id: 1, name: 'Mathematics'},
+        {id: 2, name: 'Science'},
+        {id: 3, name: 'English'}
+    ];
+    
+    subjects.forEach(subject => {
+        const option = document.createElement('option');
+        option.value = subject.id;
+        option.textContent = subject.name;
+        subjectSelect.appendChild(option);
+    });
+}
+
+function refreshPreview() {
+    const title = document.getElementById('title').value;
+    const description = document.getElementById('description').value;
+    const instructions = document.getElementById('instructions').value;
+    const dueDate = document.getElementById('due_date').value;
+    
+    const preview = document.getElementById('assignmentPreview');
+    
+    if (title || description || instructions) {
+        preview.innerHTML = `
+            <div style="border-left: 4px solid var(--accent-orange); padding-left: var(--spacing-lg);">
+                <h4 style="color: var(--text-primary); margin-bottom: var(--spacing-md);">${title || 'Assignment Title'}</h4>
+                ${description ? `<p style="color: var(--text-muted); margin-bottom: var(--spacing-md);">${description}</p>` : ''}
+                ${instructions ? `<div style="color: var(--text-primary); margin-bottom: var(--spacing-md);"><strong>Instructions:</strong><br>${instructions}</div>` : ''}
+                ${dueDate ? `<div style="color: var(--warning); font-weight: 600;"><i class="fas fa-calendar"></i> Due: ${new Date(dueDate).toLocaleDateString()}</div>` : ''}
+            </div>
+        `;
+    } else {
+        preview.innerHTML = `
+            <div style="color: var(--text-muted); text-align: center; padding: var(--spacing-xl);">
+                <i class="fas fa-eye" style="font-size: 2rem; margin-bottom: var(--spacing-md);"></i>
+                <p>Preview will appear here as you fill the form</p>
+            </div>
+        `;
+    }
+}
+
+function saveDraft() {
+    showNotification('Draft saved successfully!', 'success');
+}
+
+// Auto-refresh preview
+['title', 'description', 'instructions', 'due_date'].forEach(id => {
+    document.getElementById(id).addEventListener('input', refreshPreview);
+});
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

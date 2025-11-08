@@ -1,0 +1,353 @@
+{% extends "content_base.html" %}
+
+{% block title %}My Classes - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}My Classes{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-primary btn-sm" onclick="markAttendance()">
+        <i class="fas fa-calendar-check"></i> Mark Attendance
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="exportClassList()">
+        <i class="fas fa-download"></i> Export
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Class Statistics -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ assigned_classes|length if assigned_classes else 0 }}</h3>
+            <p>Assigned Classes</p>
+            <small>Current Academic Year</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-user-graduate"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ total_students if total_students else 0 }}</h3>
+            <p>Total Students</p>
+            <small>All Classes</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-chalkboard"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ class_teacher_count if class_teacher_count else 0 }}</h3>
+            <p>Class Teacher</p>
+            <small>Primary Responsibility</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-book"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ subjects_count if subjects_count else 0 }}</h3>
+            <p>Subjects Teaching</p>
+            <small>Different Subjects</small>
+        </div>
+    </div>
+</div>
+
+<!-- Classes List -->
+{% if assigned_classes %}
+    <div class="dashboard-grid">
+        {% for class_info in assigned_classes %}
+            <div class="dashboard-card card-hover">
+                <div class="card-header">
+                    <h3><i class="fas fa-users"></i> {{ class_info.get_display_name() }}</h3>
+                    {% if class_info.is_class_teacher %}
+                        <span class="badge badge-success">Class Teacher</span>
+                    {% else %}
+                        <span class="badge badge-info">Subject Teacher</span>
+                    {% endif %}
+                </div>
+                <div class="card-content">
+                    <!-- Class Info -->
+                    <div class="list-container" style="margin-bottom: var(--spacing-lg);">
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">Total Students</div>
+                            </div>
+                            <div class="list-item-actions">
+                                <span style="color: var(--text-primary); font-weight: 600;">{{ class_info.students|length }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">Class Capacity</div>
+                            </div>
+                            <div class="list-item-actions">
+                                <span style="color: var(--text-primary); font-weight: 600;">{{ class_info.capacity }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">Academic Year</div>
+                            </div>
+                            <div class="list-item-actions">
+                                <span style="color: var(--text-primary); font-weight: 600;">{{ class_info.academic_year }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if class_info.subjects %}
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">Subjects Teaching</div>
+                            </div>
+                            <div class="list-item-actions">
+                                <div style="display: flex; gap: var(--spacing-xs); flex-wrap: wrap;">
+                                    {% for subject in class_info.subjects %}
+                                        <span class="badge badge-secondary">{{ subject.name }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="quick-actions" style="grid-template-columns: repeat(2, 1fr);">
+                        <a href="{{ url_for('teacher.attendance') }}?class_id={{ class_info.id }}" class="quick-action-btn">
+                            <i class="fas fa-calendar-check"></i>
+                            <span>Attendance</span>
+                        </a>
+                        
+                        <button class="quick-action-btn" onclick="viewStudents({{ class_info.id }})">
+                            <i class="fas fa-list"></i>
+                            <span>Student List</span>
+                        </button>
+                        
+                        <button class="quick-action-btn" onclick="createAssignment({{ class_info.id }})">
+                            <i class="fas fa-plus"></i>
+                            <span>Assignment</span>
+                        </button>
+                        
+                        <button class="quick-action-btn" onclick="classReports({{ class_info.id }})">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="dashboard-card">
+        <div class="card-content">
+            <div class="empty-state">
+                <i class="fas fa-chalkboard"></i>
+                <h3>No Classes Assigned</h3>
+                <p>You don't have any classes assigned yet.</p>
+                <small>Contact the school administrator to get class assignments.</small>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Class Management Tools -->
+<div class="dashboard-grid" style="margin-top: var(--spacing-xl);">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-tools"></i> Class Management</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="bulkAttendance()">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Bulk Attendance</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="classSchedule()">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Class Schedule</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="studentPerformance()">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Performance</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="parentCommunication()">
+                    <i class="fas fa-envelope"></i>
+                    <span>Parent Contact</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="classNotes()">
+                    <i class="fas fa-sticky-note"></i>
+                    <span>Class Notes</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="examManagement()">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Exams</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Class Information</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; gap: var(--spacing-lg);">
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Class Teacher Responsibilities</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Monitor overall student progress, maintain discipline, and coordinate with parents.</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Subject Teacher Duties</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Focus on subject-specific teaching, assignments, and assessments.</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Attendance Guidelines</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Mark attendance daily and report any concerns to the administration.</div>
+                </div>
+                <div>
+                    <div style="color: var(--text-primary); font-weight: 600; margin-bottom: var(--spacing-xs);">Communication</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Maintain regular communication with students, parents, and school administration.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function markAttendance() {
+    window.location.href = '{{ url_for("teacher.attendance") }}';
+}
+
+function exportClassList() {
+    showNotification('Exporting class list...', 'info');
+    setTimeout(() => {
+        showNotification('Class list exported successfully!', 'success');
+    }, 2000);
+}
+
+function viewStudents(classId) {
+    showNotification('Student list feature will be available soon', 'info');
+}
+
+function createAssignment(classId) {
+    window.location.href = `{{ url_for("teacher.create_assignment") }}?class_id=${classId}`;
+}
+
+function classReports(classId) {
+    showNotification('Class reports feature will be available soon', 'info');
+}
+
+function bulkAttendance() {
+    showNotification('Bulk attendance feature will be available soon', 'info');
+}
+
+function classSchedule() {
+    showNotification('Class schedule feature will be available soon', 'info');
+}
+
+function studentPerformance() {
+    showNotification('Student performance tracking will be available soon', 'info');
+}
+
+function parentCommunication() {
+    showNotification('Parent communication feature will be available soon', 'info');
+}
+
+function classNotes() {
+    showNotification('Class notes feature will be available soon', 'info');
+}
+
+function examManagement() {
+    showNotification('Exam management feature will be available soon', 'info');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

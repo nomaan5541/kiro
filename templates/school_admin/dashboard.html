@@ -1,0 +1,1326 @@
+{% extends "content_base.html" %}
+
+{% block title %}School Admin Dashboard{% endblock %}
+
+{% block page_title %}School Dashboard{% endblock %}
+
+{% block page_description %}Real-time overview of your school's performance and activities{% endblock %}
+
+{% block extra_head %}
+{{ super() }}
+<!-- Chart.js for interactive charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li class="active">
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+    <!-- Subscription Status Badge -->
+    {% if subscription_days_remaining is defined %}
+        {% if subscription_days_remaining <= 7 %}
+            <span class="badge badge-error" style="animation: pulse 2s infinite;">
+                <i class="fas fa-exclamation-triangle"></i> {{ subscription_days_remaining }} days left
+            </span>
+        {% elif subscription_days_remaining <= 30 %}
+            <span class="badge badge-warning">
+                <i class="fas fa-clock"></i> {{ subscription_days_remaining }} days left
+            </span>
+        {% else %}
+            <span class="badge badge-success">
+                <i class="fas fa-check-circle"></i> {{ subscription_days_remaining }} days left
+            </span>
+        {% endif %}
+    {% endif %}
+    
+    <!-- Real-time indicator -->
+    <div id="realTimeIndicator" class="badge badge-success" style="display: flex; align-items: center; gap: 4px;">
+        <div class="pulse-dot"></div>
+        <span>Live</span>
+    </div>
+    
+    <!-- Refresh button -->
+    <button onclick="refreshDashboard()" class="btn btn-outline btn-sm" id="refreshBtn">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Subscription Reminder Banner -->
+    {% if subscription_days_remaining is defined and subscription_days_remaining <= 30 %}
+    <div class="alert alert-{{ 'error' if subscription_days_remaining <= 7 else 'warning' }}" style="margin-bottom: var(--spacing-xl);">
+        <div style="display: flex; justify-content: between; align-items: center;">
+            <div>
+                <i class="fas fa-{{ 'exclamation-triangle' if subscription_days_remaining <= 7 else 'clock' }}"></i>
+                <strong>Subscription {{ 'Expires Soon' if subscription_days_remaining <= 7 else 'Reminder' }}:</strong>
+                Your subscription expires in {{ subscription_days_remaining }} days.
+            </div>
+            <button class="btn btn-primary btn-sm">
+                <i class="fas fa-credit-card"></i> Renew Now
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Enhanced KPI Cards -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <!-- Total Students KPI -->
+        <div class="tactical-card kpi-card" data-kpi="students">
+            <div class="kpi-header">
+                <div class="kpi-icon" style="color: var(--accent-orange);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="kpi-trend" id="studentsTrend">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+{{ students_growth or 0 }}%</span>
+                </div>
+            </div>
+            <div class="kpi-content">
+                <h3 id="totalStudents">{{ total_students or 0 }}</h3>
+                <p>Total Students</p>
+                <small>{{ active_students or 0 }} Active • {{ inactive_students or 0 }} Inactive</small>
+            </div>
+            <div class="kpi-footer">
+                <div class="mini-chart">
+                    <canvas id="studentsChart" width="100" height="30"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Teachers KPI -->
+        <div class="tactical-card kpi-card" data-kpi="teachers">
+            <div class="kpi-header">
+                <div class="kpi-icon" style="color: var(--success);">
+                    <i class="fas fa-chalkboard-teacher"></i>
+                </div>
+                <div class="kpi-trend" id="teachersTrend">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+{{ teachers_growth or 0 }}%</span>
+                </div>
+            </div>
+            <div class="kpi-content">
+                <h3 id="totalTeachers">{{ total_teachers or 0 }}</h3>
+                <p>Total Teachers</p>
+                <small>{{ active_teachers or 0 }} Active • {{ subjects_covered or 0 }} Subjects</small>
+            </div>
+            <div class="kpi-footer">
+                <div class="mini-chart">
+                    <canvas id="teachersChart" width="100" height="30"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Today KPI -->
+        <div class="tactical-card kpi-card" data-kpi="attendance">
+            <div class="kpi-header">
+                <div class="kpi-icon" style="color: var(--info);">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="kpi-trend" id="attendanceTrend">
+                    <i class="fas fa-arrow-{{ 'up' if attendance_trend >= 0 else 'down' }}"></i>
+                    <span>{{ '+' if attendance_trend >= 0 else '' }}{{ attendance_trend or 0 }}%</span>
+                </div>
+            </div>
+            <div class="kpi-content">
+                <h3 id="attendanceToday">{{ attendance_percentage or 0 }}%</h3>
+                <p>Attendance Today</p>
+                <small>{{ present_today or 0 }} Present • {{ absent_today or 0 }} Absent</small>
+            </div>
+            <div class="kpi-footer">
+                <div class="attendance-ring">
+                    <svg width="60" height="60" viewBox="0 0 60 60">
+                        <circle cx="30" cy="30" r="25" fill="none" stroke="var(--bg-tertiary)" stroke-width="4"/>
+                        <circle cx="30" cy="30" r="25" fill="none" stroke="var(--info)" stroke-width="4" 
+                                stroke-dasharray="{{ (attendance_percentage or 0) * 1.57 }} 157" 
+                                stroke-dashoffset="39.25" transform="rotate(-90 30 30)"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fees Collection KPI -->
+        <div class="tactical-card kpi-card" data-kpi="fees">
+            <div class="kpi-header">
+                <div class="kpi-icon" style="color: var(--warning);">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <div class="kpi-trend" id="feesTrend">
+                    <i class="fas fa-arrow-up"></i>
+                    <span>+{{ fees_growth or 0 }}%</span>
+                </div>
+            </div>
+            <div class="kpi-content">
+                <h3 id="feesCollected">₹{{ "{:,.0f}".format(fees_collected or 0) }}</h3>
+                <p>Fees Collected</p>
+                <small>{{ collection_rate or 0 }}% Collection Rate</small>
+            </div>
+            <div class="kpi-footer">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ collection_rate or 0 }}%; background: var(--warning);"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Charts Section -->
+    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <!-- Monthly Attendance Trend Chart -->
+        <div class="tactical-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-line"></i> Monthly Attendance Trend</h3>
+                <div class="chart-controls">
+                    <select id="attendanceChartPeriod" class="form-select" style="width: auto;">
+                        <option value="6months">Last 6 Months</option>
+                        <option value="1year">Last Year</option>
+                        <option value="2years">Last 2 Years</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="attendanceTrendChart" height="300"></canvas>
+            </div>
+        </div>
+
+        <!-- Class-wise Student Distribution -->
+        <div class="tactical-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-pie"></i> Class Distribution</h3>
+            </div>
+            <div class="chart-container">
+                <canvas id="classDistributionChart" height="300"></canvas>
+            </div>
+            <div class="chart-legend" id="classLegend">
+                <!-- Legend will be populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Collection and Performance Charts -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <!-- Fee Collection Trend -->
+        <div class="tactical-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-money-bill-trend-up"></i> Fee Collection Trend</h3>
+                <div class="chart-controls">
+                    <button class="btn btn-sm btn-outline" onclick="toggleFeeChartView('monthly')">Monthly</button>
+                    <button class="btn btn-sm btn-primary" onclick="toggleFeeChartView('weekly')">Weekly</button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="feeCollectionChart" height="250"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Performing Students -->
+        <div class="tactical-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-trophy"></i> Top Performing Students</h3>
+                <a href="{{ url_for('school_admin.reports') }}" class="btn btn-sm btn-outline">View All</a>
+            </div>
+            <div class="performance-list">
+                {% for student in top_students[:5] if top_students %}
+                <div class="performance-item">
+                    <div class="student-info">
+                        <div class="student-avatar">
+                            {% if student.photo_url %}
+                                <img src="{{ url_for('files.serve_student_photo', student_id=student.id) }}" alt="{{ student.name }}">
+                            {% else %}
+                                <div class="avatar-placeholder">{{ student.name[0] }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="student-details">
+                            <strong>{{ student.name }}</strong>
+                            <small>{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</small>
+                        </div>
+                    </div>
+                    <div class="performance-score">
+                        <div class="score-bar">
+                            <div class="score-fill" style="width: {{ student.performance_score or 85 }}%"></div>
+                        </div>
+                        <span class="score-text">{{ student.performance_score or 85 }}%</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-chart-line"></i>
+                    <p>No performance data available</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: var(--spacing-lg);">
+        <!-- Quick Actions -->
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-bolt"></i> Quick Actions
+            </h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md);">
+                <a href="{{ url_for('school_admin.add_student') }}" class="quick-action-btn">
+                    <i class="fas fa-user-plus"></i>
+                    <span>Add Student</span>
+                    <small>Register new student</small>
+                </a>
+                
+                <a href="{{ url_for('school_admin.attendance') }}" class="quick-action-btn">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Mark Attendance</span>
+                    <small>Today's attendance</small>
+                </a>
+                
+                <a href="{{ url_for('school_admin.fees') }}" class="quick-action-btn">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <span>Collect Fees</span>
+                    <small>Record payment</small>
+                </a>
+                
+                <a href="{{ url_for('school_admin.reports') }}" class="quick-action-btn">
+                    <i class="fas fa-chart-line"></i>
+                    <span>View Reports</span>
+                    <small>Analytics & insights</small>
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Activities Panel -->
+        <div class="tactical-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <h3><i class="fas fa-clock"></i> Recent Activities</h3>
+                <div class="activity-filter">
+                    <select id="activityFilter" class="form-select" style="width: auto;">
+                        <option value="all">All Activities</option>
+                        <option value="students">Students</option>
+                        <option value="fees">Fees</option>
+                        <option value="attendance">Attendance</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="activity-feed" id="activityFeed">
+                {% for activity in recent_activities[:10] if recent_activities %}
+                <div class="activity-item" data-type="{{ activity.type }}">
+                    <div class="activity-icon">
+                        <i class="fas fa-{{ activity.icon }}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p>{{ activity.description }}</p>
+                        <small class="activity-time" data-timestamp="{{ activity.timestamp }}">
+                            {{ activity.time_ago }}
+                        </small>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-history"></i>
+                    <p>No recent activities</p>
+                    <small>Activities will appear here as you use the system</small>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if recent_activities and recent_activities|length > 10 %}
+            <div style="text-align: center; margin-top: var(--spacing-md);">
+                <button class="btn btn-outline btn-sm" onclick="loadMoreActivities()">
+                    <i class="fas fa-chevron-down"></i> Load More
+                </button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Fee Overview -->
+        <div class="tactical-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <h3><i class="fas fa-money-bill-wave"></i> Fee Overview</h3>
+                <a href="{{ url_for('school_admin.fees') }}" class="btn btn-primary btn-sm">Manage Fees</a>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Total Expected</span>
+                    <span style="font-weight: 600;">₹{{ "{:,.0f}".format(fees_due if fees_due else 0) }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Collected</span>
+                    <span style="font-weight: 600; color: var(--color-success);">₹{{ "{:,.0f}".format(fees_collected if fees_collected else 0) }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Pending</span>
+                    <span style="font-weight: 600; color: var(--color-error);">₹{{ "{:,.0f}".format((fees_due - fees_collected) if (fees_due and fees_collected) else 0) }}</span>
+                </div>
+                
+                {% if fees_due and fees_due > 0 %}
+                <div style="margin-top: var(--spacing-md);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                        <span>Collection Rate</span>
+                        <span><strong>{{ "%.1f"|format((fees_collected / fees_due * 100) if fees_due > 0 else 0) }}%</strong></span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" data-width="{{ (fees_collected / fees_due * 100) if fees_due > 0 else 0 }}"></div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Recent Students -->
+        <div class="tactical-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <h3><i class="fas fa-user-plus"></i> Recent Admissions</h3>
+                <a href="{{ url_for('school_admin.students') }}" class="btn btn-primary btn-sm">View All</a>
+            </div>
+            
+            <div class="empty-state">
+                <i class="fas fa-user-graduate" style="font-size: 3rem; color: var(--color-muted); margin-bottom: var(--spacing-md);"></i>
+                <p>No recent admissions</p>
+                <a href="{{ url_for('school_admin.add_student') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Add First Student
+                </a>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="tactical-card">
+            <h3 style="margin-bottom: var(--spacing-lg);">
+                <i class="fas fa-server"></i> System Status
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-md);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Database</span>
+                    <span class="badge badge-success">Online</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Backup Status</span>
+                    <span class="badge badge-success">Up to Date</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Storage Used</span>
+                    <span style="font-weight: 600;">2.3 GB / 10 GB</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>Setup Status</span>
+                    {% if school and school.setup_completed %}
+                        <span class="badge badge-success">Complete</span>
+                    {% else %}
+                        <a href="{{ url_for('school_admin.setup_wizard') }}" class="badge badge-warning">Pending</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Enhanced KPI Cards */
+.kpi-card {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.kpi-icon {
+    font-size: 2.5rem;
+    opacity: 0.9;
+}
+
+.kpi-trend {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--success);
+}
+
+.kpi-trend.negative {
+    color: var(--error);
+}
+
+.kpi-content h3 {
+    margin: 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.kpi-content p {
+    margin: var(--spacing-xs) 0 0 0;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.kpi-content small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.kpi-footer {
+    margin-top: var(--spacing-md);
+}
+
+/* Charts */
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.chart-header h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.chart-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+
+.chart-legend {
+    margin-top: var(--spacing-md);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-sm);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.875rem;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* Quick Actions */
+.quick-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-lg);
+    text-decoration: none;
+    border: 2px solid var(--bg-tertiary);
+    border-radius: var(--radius-lg);
+    transition: all 0.2s ease;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.quick-action-btn:hover {
+    border-color: var(--accent-orange);
+    background: var(--accent-orange);
+    color: var(--bg-primary);
+    transform: translateY(-2px);
+}
+
+.quick-action-btn i {
+    font-size: 1.5rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.quick-action-btn span {
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+}
+
+.quick-action-btn small {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/* Activity Feed */
+.activity-feed {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: background-color 0.2s ease;
+}
+
+.activity-item:hover {
+    background: var(--bg-secondary);
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--accent-orange);
+    color: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-content p {
+    margin: 0 0 var(--spacing-xs) 0;
+    font-size: 0.9rem;
+}
+
+.activity-time {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* Performance List */
+.performance-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.performance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+}
+
+.student-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.student-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.student-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatar-placeholder {
+    width: 100%;
+    height: 100%;
+    background: var(--accent-orange);
+    color: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+}
+
+.student-details strong {
+    display: block;
+    font-size: 0.9rem;
+}
+
+.student-details small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.performance-score {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.score-bar {
+    width: 60px;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.score-fill {
+    height: 100%;
+    background: var(--success);
+    transition: width 0.3s ease;
+}
+
+.score-text {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--success);
+}
+
+/* Progress bars */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--accent-orange);
+    transition: width 0.3s ease;
+}
+
+/* Attendance Ring */
+.attendance-ring {
+    display: flex;
+    justify-content: center;
+}
+
+/* Real-time indicator */
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Empty states */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-muted);
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+    opacity: 0.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 250px;
+    }
+    
+    .kpi-content h3 {
+        font-size: 2rem;
+    }
+    
+    .quick-action-btn {
+        padding: var(--spacing-md);
+    }
+}
+</style>
+
+<script>
+// Dashboard data and configuration
+const dashboardData = {
+    attendance: {{ attendance_chart_data|tojson if attendance_chart_data else '[]' }},
+    feeCollection: {{ fee_chart_data|tojson if fee_chart_data else '[]' }},
+    classDistribution: {{ class_distribution_data|tojson if class_distribution_data else '[]' }},
+    studentsTrend: {{ students_trend_data|tojson if students_trend_data else '[]' }},
+    teachersTrend: {{ teachers_trend_data|tojson if teachers_trend_data else '[]' }}
+};
+
+// Chart instances
+let attendanceTrendChart, feeCollectionChart, classDistributionChart;
+let studentsSparkline, teachersSparkline;
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initializeCharts();
+    initializeRealTimeUpdates();
+    initializeActivityFeed();
+    animateKPIs();
+    
+    // Set progress bar widths
+    const progressFills = document.querySelectorAll('.progress-fill[data-width]');
+    progressFills.forEach(function(fill) {
+        const width = fill.dataset.width;
+        fill.style.width = width + '%';
+    });
+});
+
+// Initialize all charts
+function initializeCharts() {
+    // Attendance Trend Chart
+    const attendanceCtx = document.getElementById('attendanceTrendChart');
+    if (attendanceCtx) {
+        attendanceTrendChart = new Chart(attendanceCtx, {
+            type: 'line',
+            data: {
+                labels: dashboardData.attendance.map(d => d.month) || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Attendance %',
+                    data: dashboardData.attendance.map(d => d.percentage) || [85, 88, 92, 87, 90, 93],
+                    borderColor: 'var(--info)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'var(--info)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'var(--bg-primary)',
+                        titleColor: 'var(--text-primary)',
+                        bodyColor: 'var(--text-primary)',
+                        borderColor: 'var(--bg-tertiary)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'var(--bg-tertiary)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: 'var(--text-muted)',
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'var(--text-muted)'
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+    }
+
+    // Fee Collection Chart
+    const feeCtx = document.getElementById('feeCollectionChart');
+    if (feeCtx) {
+        feeCollectionChart = new Chart(feeCtx, {
+            type: 'bar',
+            data: {
+                labels: dashboardData.feeCollection.map(d => d.period) || ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{
+                    label: 'Collected',
+                    data: dashboardData.feeCollection.map(d => d.collected) || [45000, 52000, 48000, 61000],
+                    backgroundColor: 'var(--success)',
+                    borderRadius: 6,
+                    borderSkipped: false
+                }, {
+                    label: 'Pending',
+                    data: dashboardData.feeCollection.map(d => d.pending) || [15000, 8000, 12000, 4000],
+                    backgroundColor: 'var(--warning)',
+                    borderRadius: 6,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            color: 'var(--text-primary)'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'var(--bg-primary)',
+                        titleColor: 'var(--text-primary)',
+                        bodyColor: 'var(--text-primary)',
+                        borderColor: 'var(--bg-tertiary)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ₹' + context.parsed.y.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        grid: {
+                            color: 'var(--bg-tertiary)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: 'var(--text-muted)',
+                            callback: function(value) {
+                                return '₹' + (value / 1000) + 'K';
+                            }
+                        }
+                    },
+                    x: {
+                        stacked: true,
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'var(--text-muted)'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Class Distribution Pie Chart
+    const classCtx = document.getElementById('classDistributionChart');
+    if (classCtx) {
+        const classData = dashboardData.classDistribution.length > 0 ? dashboardData.classDistribution : [
+            { class: 'Class 1', students: 45, color: '#FF6B35' },
+            { class: 'Class 2', students: 38, color: '#F7931E' },
+            { class: 'Class 3', students: 42, color: '#FFD23F' },
+            { class: 'Class 4', students: 35, color: '#06FFA5' },
+            { class: 'Class 5', students: 40, color: '#118AB2' }
+        ];
+
+        classDistributionChart = new Chart(classCtx, {
+            type: 'doughnut',
+            data: {
+                labels: classData.map(d => d.class),
+                datasets: [{
+                    data: classData.map(d => d.students),
+                    backgroundColor: classData.map(d => d.color),
+                    borderWidth: 0,
+                    cutout: '60%'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'var(--bg-primary)',
+                        titleColor: 'var(--text-primary)',
+                        bodyColor: 'var(--text-primary)',
+                        borderColor: 'var(--bg-tertiary)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Create custom legend
+        createClassLegend(classData);
+    }
+
+    // Mini sparkline charts for KPIs
+    createSparklineCharts();
+}
+
+// Create sparkline charts for KPI cards
+function createSparklineCharts() {
+    // Students sparkline
+    const studentsCtx = document.getElementById('studentsChart');
+    if (studentsCtx) {
+        studentsSparkline = new Chart(studentsCtx, {
+            type: 'line',
+            data: {
+                labels: ['', '', '', '', '', ''],
+                datasets: [{
+                    data: dashboardData.studentsTrend.length > 0 ? dashboardData.studentsTrend : [120, 125, 130, 128, 135, 140],
+                    borderColor: 'var(--accent-orange)',
+                    backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                },
+                elements: { point: { radius: 0 } }
+            }
+        });
+    }
+
+    // Teachers sparkline
+    const teachersCtx = document.getElementById('teachersChart');
+    if (teachersCtx) {
+        teachersSparkline = new Chart(teachersCtx, {
+            type: 'line',
+            data: {
+                labels: ['', '', '', '', '', ''],
+                datasets: [{
+                    data: dashboardData.teachersTrend.length > 0 ? dashboardData.teachersTrend : [15, 16, 15, 17, 18, 18],
+                    borderColor: 'var(--success)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                },
+                elements: { point: { radius: 0 } }
+            }
+        });
+    }
+}
+
+// Create custom legend for class distribution chart
+function createClassLegend(classData) {
+    const legendContainer = document.getElementById('classLegend');
+    if (legendContainer) {
+        legendContainer.innerHTML = classData.map(item => `
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: ${item.color}"></div>
+                <span>${item.class} (${item.students})</span>
+            </div>
+        `).join('');
+    }
+}
+
+// Animate KPI numbers on load
+function animateKPIs() {
+    const kpiElements = [
+        { id: 'totalStudents', target: {{ total_students or 0 }} },
+        { id: 'totalTeachers', target: {{ total_teachers or 0 }} },
+        { id: 'attendanceToday', target: {{ attendance_percentage or 0 }}, suffix: '%' },
+        { id: 'feesCollected', target: {{ fees_collected or 0 }}, prefix: '₹', format: true }
+    ];
+
+    kpiElements.forEach(item => {
+        const element = document.getElementById(item.id);
+        if (element) {
+            animateNumber(element, 0, item.target, 1500, item.prefix, item.suffix, item.format);
+        }
+    });
+}
+
+// Number animation function
+function animateNumber(element, start, end, duration, prefix = '', suffix = '', format = false) {
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        const current = Math.floor(start + (end - start) * easeOutCubic(progress));
+        let displayValue = format ? current.toLocaleString() : current;
+        
+        element.textContent = (prefix || '') + displayValue + (suffix || '');
+        
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    
+    requestAnimationFrame(update);
+}
+
+// Easing function
+function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+}
+
+// Real-time updates
+function initializeRealTimeUpdates() {
+    // Update every 30 seconds
+    setInterval(updateDashboardData, 30000);
+    
+    // Update time displays every minute
+    setInterval(updateTimeDisplays, 60000);
+}
+
+// Update dashboard data
+function updateDashboardData() {
+    fetch('/school/dashboard/data')
+        .then(response => response.json())
+        .then(data => {
+            // Update KPI values
+            updateKPIValues(data);
+            
+            // Update charts if needed
+            if (data.chartUpdates) {
+                updateCharts(data.chartUpdates);
+            }
+            
+            // Update activity feed
+            if (data.newActivities) {
+                addNewActivities(data.newActivities);
+            }
+        })
+        .catch(error => {
+            console.log('Dashboard update failed:', error);
+            // Show offline indicator
+            document.getElementById('realTimeIndicator').innerHTML = 
+                '<div class="pulse-dot" style="background: var(--warning);"></div><span>Offline</span>';
+        });
+}
+
+// Update KPI values
+function updateKPIValues(data) {
+    if (data.totalStudents !== undefined) {
+        document.getElementById('totalStudents').textContent = data.totalStudents;
+    }
+    if (data.totalTeachers !== undefined) {
+        document.getElementById('totalTeachers').textContent = data.totalTeachers;
+    }
+    if (data.attendancePercentage !== undefined) {
+        document.getElementById('attendanceToday').textContent = data.attendancePercentage + '%';
+    }
+    if (data.feesCollected !== undefined) {
+        document.getElementById('feesCollected').textContent = '₹' + data.feesCollected.toLocaleString();
+    }
+}
+
+// Update time displays
+function updateTimeDisplays() {
+    const timeElements = document.querySelectorAll('.activity-time[data-timestamp]');
+    timeElements.forEach(element => {
+        const timestamp = parseInt(element.dataset.timestamp);
+        element.textContent = getTimeAgo(timestamp);
+    });
+}
+
+// Get time ago string
+function getTimeAgo(timestamp) {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return days + 'd ago';
+    if (hours > 0) return hours + 'h ago';
+    if (minutes > 0) return minutes + 'm ago';
+    return 'Just now';
+}
+
+// Activity feed functions
+function initializeActivityFeed() {
+    const activityFilter = document.getElementById('activityFilter');
+    if (activityFilter) {
+        activityFilter.addEventListener('change', filterActivities);
+    }
+}
+
+function filterActivities() {
+    const filter = document.getElementById('activityFilter').value;
+    const activities = document.querySelectorAll('.activity-item');
+    
+    activities.forEach(activity => {
+        const type = activity.dataset.type;
+        if (filter === 'all' || type === filter) {
+            activity.style.display = 'flex';
+        } else {
+            activity.style.display = 'none';
+        }
+    });
+}
+
+function addNewActivities(activities) {
+    const feed = document.getElementById('activityFeed');
+    const emptyState = feed.querySelector('.empty-state');
+    
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    activities.forEach(activity => {
+        const activityElement = createActivityElement(activity);
+        feed.insertBefore(activityElement, feed.firstChild);
+    });
+    
+    // Remove old activities if too many
+    const allActivities = feed.querySelectorAll('.activity-item');
+    if (allActivities.length > 20) {
+        for (let i = 20; i < allActivities.length; i++) {
+            allActivities[i].remove();
+        }
+    }
+}
+
+function createActivityElement(activity) {
+    const div = document.createElement('div');
+    div.className = 'activity-item';
+    div.dataset.type = activity.type;
+    div.innerHTML = `
+        <div class="activity-icon">
+            <i class="fas fa-${activity.icon}"></i>
+        </div>
+        <div class="activity-content">
+            <p>${activity.description}</p>
+            <small class="activity-time" data-timestamp="${activity.timestamp}">
+                ${getTimeAgo(activity.timestamp)}
+            </small>
+        </div>
+    `;
+    return div;
+}
+
+// Chart control functions
+function toggleFeeChartView(view) {
+    // Update chart data based on view
+    // This would fetch new data and update the chart
+    console.log('Switching fee chart to:', view);
+}
+
+// Refresh dashboard
+function refreshDashboard() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    const icon = refreshBtn.querySelector('i');
+    
+    icon.style.animation = 'spin 1s linear infinite';
+    refreshBtn.disabled = true;
+    
+    updateDashboardData();
+    
+    setTimeout(() => {
+        icon.style.animation = '';
+        refreshBtn.disabled = false;
+    }, 1000);
+}
+
+// Load more activities
+function loadMoreActivities() {
+    // Implementation for loading more activities
+    console.log('Loading more activities...');
+}
+
+// CSS animation for spin
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

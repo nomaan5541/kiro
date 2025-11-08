@@ -1,0 +1,459 @@
+{% extends "content_base.html" %}
+
+{% block title %}Promote Students - {{ current_class.get_display_name() }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-shield"></i> Admin</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ school.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-user-graduate"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fee_management') }}">
+        <i class="fas fa-money-bill-wave"></i> Fee Management
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Promote Students{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="window.history.back()">
+        <i class="fas fa-arrow-left"></i> Back to Class
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Promote Class Styles */
+.promote-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.promote-header {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+}
+
+.current-class {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.promote-description {
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
+
+.promote-form {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    border: 1px solid var(--border-color);
+}
+
+.form-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--accent-orange);
+}
+
+.section-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-orange), var(--accent-green));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.target-class-selection {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--spacing-lg);
+    align-items: end;
+    margin-bottom: var(--spacing-xl);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.form-group select {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-group select:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 3px rgba(255, 111, 0, 0.1);
+}
+
+.selection-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.students-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.student-card {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.student-card:hover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 111, 0, 0.05);
+}
+
+.student-card.selected {
+    border-color: var(--accent-orange);
+    background: rgba(255, 111, 0, 0.1);
+    box-shadow: 0 0 0 2px rgba(255, 111, 0, 0.2);
+}
+
+.student-checkbox {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.student-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-orange);
+}
+
+.student-info {
+    flex: 1;
+}
+
+.student-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.student-details {
+    display: flex;
+    gap: var(--spacing-md);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.roll-number {
+    font-family: 'Fira Code', monospace;
+    background: var(--card-bg);
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+}
+
+.promote-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    justify-content: center;
+    padding-top: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+}
+
+.selected-count {
+    background: var(--accent-orange);
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .target-class-selection {
+        grid-template-columns: 1fr;
+    }
+    
+    .students-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .selection-controls {
+        flex-direction: column;
+    }
+    
+    .promote-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<div class="promote-container">
+    <!-- Header -->
+    <div class="promote-header">
+        <div class="current-class">{{ current_class.get_display_name() }}</div>
+        <div class="promote-description">
+            Select students to promote to the next class. You can choose individual students or select all.
+        </div>
+    </div>
+    
+    <!-- Promotion Form -->
+    <form method="POST" class="promote-form" id="promoteForm">
+        <!-- Target Class Selection -->
+        <div class="form-section">
+            <div class="section-title">
+                <div class="section-icon">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <span>Select Target Class</span>
+            </div>
+            
+            <div class="target-class-selection">
+                <div class="form-group">
+                    <label for="target_class_id">Promote to Class *</label>
+                    <select id="target_class_id" name="target_class_id" required>
+                        <option value="">Select target class</option>
+                        {% for class in target_classes %}
+                            <option value="{{ class.id }}">{{ class.get_display_name() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Student Selection -->
+        <div class="form-section">
+            <div class="section-title">
+                <div class="section-icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <span>Select Students</span>
+            </div>
+            
+            <div class="selection-controls">
+                <button type="button" class="btn btn-sm btn-outline" onclick="selectAll()">
+                    <i class="fas fa-check-square"></i> Select All
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="selectNone()">
+                    <i class="fas fa-square"></i> Select None
+                </button>
+            </div>
+            
+            <div class="selected-count" id="selectedCount" style="display: none;">
+                <span id="countText">0 students selected</span>
+            </div>
+            
+            {% if students %}
+                <div class="students-grid">
+                    {% for student in students %}
+                        <div class="student-card" onclick="toggleStudent({{ student.id }})">
+                            <div class="student-checkbox">
+                                <input type="checkbox" 
+                                       id="student_{{ student.id }}" 
+                                       name="student_ids" 
+                                       value="{{ student.id }}"
+                                       onchange="updateCount()">
+                                <div class="student-info">
+                                    <div class="student-name">{{ student.name }}</div>
+                                    <div class="student-details">
+                                        <span class="roll-number">{{ student.roll_number or 'N/A' }}</span>
+                                        {% if student.gender %}
+                                            <span>{{ student.gender.value.title() }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No students found in this class.</p>
+            {% endif %}
+        </div>
+        
+        <!-- Actions -->
+        <div class="promote-actions">
+            <button type="submit" class="btn btn-primary" id="promoteBtn" disabled>
+                <i class="fas fa-level-up-alt"></i> Promote Selected Students
+            </button>
+            <a href="{{ url_for('school_admin.view_class', class_id=current_class.id) }}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function toggleStudent(studentId) {
+    const checkbox = document.getElementById(`student_${studentId}`);
+    const card = checkbox.closest('.student-card');
+    
+    checkbox.checked = !checkbox.checked;
+    
+    if (checkbox.checked) {
+        card.classList.add('selected');
+    } else {
+        card.classList.remove('selected');
+    }
+    
+    updateCount();
+}
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('input[name="student_ids"]');
+    const cards = document.querySelectorAll('.student-card');
+    
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.checked = true;
+        cards[index].classList.add('selected');
+    });
+    
+    updateCount();
+}
+
+function selectNone() {
+    const checkboxes = document.querySelectorAll('input[name="student_ids"]');
+    const cards = document.querySelectorAll('.student-card');
+    
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.checked = false;
+        cards[index].classList.remove('selected');
+    });
+    
+    updateCount();
+}
+
+function updateCount() {
+    const checkboxes = document.querySelectorAll('input[name="student_ids"]:checked');
+    const count = checkboxes.length;
+    const countElement = document.getElementById('selectedCount');
+    const countText = document.getElementById('countText');
+    const promoteBtn = document.getElementById('promoteBtn');
+    
+    if (count > 0) {
+        countElement.style.display = 'block';
+        countText.textContent = `${count} student${count !== 1 ? 's' : ''} selected`;
+        promoteBtn.disabled = false;
+    } else {
+        countElement.style.display = 'none';
+        promoteBtn.disabled = true;
+    }
+}
+
+// Form validation
+document.getElementById('promoteForm').addEventListener('submit', function(e) {
+    const targetClass = document.getElementById('target_class_id').value;
+    const selectedStudents = document.querySelectorAll('input[name="student_ids"]:checked');
+    
+    if (!targetClass) {
+        e.preventDefault();
+        alert('Please select a target class');
+        return;
+    }
+    
+    if (selectedStudents.length === 0) {
+        e.preventDefault();
+        alert('Please select at least one student to promote');
+        return;
+    }
+    
+    const confirmMessage = `Are you sure you want to promote ${selectedStudents.length} student${selectedStudents.length !== 1 ? 's' : ''} to the selected class?`;
+    
+    if (!confirm(confirmMessage)) {
+        e.preventDefault();
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateCount();
+});
+</script>
+{% endblock %}

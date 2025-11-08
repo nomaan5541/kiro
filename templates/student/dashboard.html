@@ -1,0 +1,413 @@
+{% extends "dashboard_base.html" %}
+
+{% block title %}Student Dashboard - School Management System{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li class="active">
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+        {% if recent_notifications %}
+            <span class="notification-badge">{{ recent_notifications|length }}</span>
+        {% endif %}
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Student Dashboard{% endblock %}
+
+{% block dashboard_content %}
+<!-- KPI Cards -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ attendance_summary.percentage if attendance_summary else 0 }}%</h3>
+            <p>Attendance Rate</p>
+            <small>Last 30 days</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-money-bill-wave"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ fee_status.payment_percentage if fee_status else 0 }}%</h3>
+            <p>Fees Paid</p>
+            <small>Current Year</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-tasks"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ recent_assignments|length if recent_assignments else 0 }}</h3>
+            <p>Active Assignments</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-bell"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ recent_notifications|length if recent_notifications else 0 }}</h3>
+            <p>New Notifications</p>
+            <small>Unread</small>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Attendance Overview -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar-check"></i> Attendance Overview</h3>
+            <a href="{{ url_for('student.attendance') }}" class="btn btn-primary btn-sm">View Details</a>
+        </div>
+        <div class="card-content">
+            <div style="position: relative; height: 200px; margin-bottom: var(--spacing-lg);">
+                <canvas id="attendanceChart"></canvas>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-md);">
+                <div style="text-align: center;">
+                    <div style="color: var(--success); font-weight: 600; font-size: 1.25rem;">{{ attendance_summary.present_days if attendance_summary else 0 }}</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Present</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--error); font-weight: 600; font-size: 1.25rem;">{{ attendance_summary.absent_days if attendance_summary else 0 }}</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Absent</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="color: var(--warning); font-weight: 600; font-size: 1.25rem;">{{ attendance_summary.leave_days if attendance_summary else 0 }}</div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Leave</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Status -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-money-bill-wave"></i> Fee Status</h3>
+            {% if fee_status and not fee_status.is_fully_paid %}
+                <a href="{{ url_for('student.pay_fees') }}" class="btn btn-primary btn-sm">Pay Now</a>
+            {% endif %}
+        </div>
+        <div class="card-content">
+            {% if fee_status %}
+                <div style="margin-bottom: var(--spacing-lg);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                        <span style="color: var(--text-muted);">Payment Progress</span>
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ fee_status.payment_percentage }}% Paid</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" style="width: {{ fee_status.payment_percentage }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="list-container">
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Total Fee</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">₹{{ "{:,.2f}".format(fee_status.total_fee) }}</span>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Paid Amount</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--success); font-weight: 600;">₹{{ "{:,.2f}".format(fee_status.paid_amount) }}</span>
+                        </div>
+                    </div>
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Remaining</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--error); font-weight: 600;">₹{{ "{:,.2f}".format(fee_status.remaining_amount) }}</span>
+                        </div>
+                    </div>
+                    {% if fee_status.next_due_date %}
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Next Due</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--warning); font-weight: 600;">{{ fee_status.next_due_date.strftime('%d %b %Y') }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                {% if fee_status.is_overdue %}
+                    <div class="alert alert-warning" style="margin-top: var(--spacing-md);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Payment is overdue. Please pay as soon as possible.
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-money-bill-wave"></i>
+                    <p>No fee information available</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Assignments -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-tasks"></i> Recent Assignments</h3>
+            <a href="{{ url_for('student.assignments') }}" class="btn btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-content">
+            {% if recent_assignments %}
+                <div class="list-container">
+                    {% for assignment in recent_assignments %}
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">{{ assignment.title }}</div>
+                                <div class="list-item-meta">
+                                    {% if assignment.subject %}
+                                        <span class="badge badge-info">{{ assignment.subject.name }}</span>
+                                    {% endif %}
+                                    <span><i class="fas fa-calendar"></i> Assigned: {{ assignment.assigned_date.strftime('%d %b') }}</span>
+                                    {% if assignment.due_date %}
+                                        <span style="color: {{ 'var(--error)' if assignment.due_date < moment().date() else 'var(--text-muted)' }};"><i class="fas fa-clock"></i> Due: {{ assignment.due_date.strftime('%d %b') }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="list-item-actions">
+                                <a href="{{ url_for('student.view_assignment', assignment_id=assignment.id) }}" 
+                                   class="btn btn-sm btn-outline">View</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>No assignments available</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Payments -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-receipt"></i> Recent Payments</h3>
+            <a href="{{ url_for('student.fees') }}" class="btn btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-content">
+            {% if recent_payments %}
+                <div class="list-container">
+                    {% for payment in recent_payments %}
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">₹{{ "{:,.2f}".format(payment.amount) }}</div>
+                                <div class="list-item-meta">
+                                    <span>Receipt: {{ payment.receipt_no }}</span>
+                                    <span>{{ payment.payment_date.strftime('%d %b %Y') }}</span>
+                                    <span class="badge badge-info">{{ payment.payment_mode.value.title() }}</span>
+                                </div>
+                            </div>
+                            <div class="list-item-actions">
+                                <span class="status-badge paid">{{ payment.status.value.title() }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-receipt"></i>
+                    <p>No payment history</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <a href="{{ url_for('student.attendance') }}" class="quick-action-btn">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>View Attendance</span>
+                </a>
+                
+                {% if fee_status and not fee_status.is_fully_paid %}
+                    <a href="{{ url_for('student.pay_fees') }}" class="quick-action-btn">
+                        <i class="fas fa-credit-card"></i>
+                        <span>Pay Fees</span>
+                    </a>
+                {% endif %}
+                
+                <a href="{{ url_for('student.assignments') }}" class="quick-action-btn">
+                    <i class="fas fa-download"></i>
+                    <span>Download Assignments</span>
+                </a>
+                
+                <a href="{{ url_for('student.reports') }}" class="quick-action-btn">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>Generate Reports</span>
+                </a>
+                
+                <a href="{{ url_for('student.profile') }}" class="quick-action-btn">
+                    <i class="fas fa-id-card"></i>
+                    <span>View ID Card</span>
+                </a>
+                
+                <a href="{{ url_for('student.notifications') }}" class="quick-action-btn">
+                    <i class="fas fa-bell"></i>
+                    <span>Check Notifications</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Notifications -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-bell"></i> Recent Notifications</h3>
+            <a href="{{ url_for('student.notifications') }}" class="btn btn-primary btn-sm">View All</a>
+        </div>
+        <div class="card-content">
+            {% if recent_notifications %}
+                <div class="list-container">
+                    {% for notification in recent_notifications %}
+                        <div class="list-item">
+                            <div style="display: flex; align-items: flex-start; gap: var(--spacing-md);">
+                                <div style="color: var(--accent-orange); font-size: 1.25rem; margin-top: var(--spacing-xs);">
+                                    {% if notification.notification_type.value == 'attendance_alert' %}
+                                        <i class="fas fa-calendar-times"></i>
+                                    {% elif notification.notification_type.value == 'payment_confirmation' %}
+                                        <i class="fas fa-check-circle"></i>
+                                    {% elif notification.notification_type.value == 'fee_reminder' %}
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="list-item-content">
+                                    <div class="list-item-title">{{ notification.message }}</div>
+                                    <div class="list-item-meta">{{ notification.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+                                </div>
+                            </div>
+                            <div class="list-item-actions">
+                                <span class="status-badge {{ 'active' if notification.status.value == 'unread' else 'completed' }}">
+                                    {{ notification.status.value.title() }}
+                                </span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-bell-slash"></i>
+                    <p>No recent notifications</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Attendance Chart
+document.addEventListener('DOMContentLoaded', function() {
+    const attendanceCtx = document.getElementById('attendanceChart');
+    if (attendanceCtx) {
+        new Chart(attendanceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Present', 'Absent', 'Leave'],
+                datasets: [{
+                    data: [
+                        {{ attendance_summary.present_days if attendance_summary else 0 }},
+                        {{ attendance_summary.absent_days if attendance_summary else 0 }},
+                        {{ attendance_summary.leave_days if attendance_summary else 0 }}
+                    ],
+                    backgroundColor: [
+                        'var(--success)',
+                        'var(--error)',
+                        'var(--warning)'
+                    ],
+                    borderWidth: 2,
+                    borderColor: 'var(--bg-secondary)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

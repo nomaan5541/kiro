@@ -1,0 +1,794 @@
+{% extends "content_base.html" %}
+
+{% block title %}My Assignments{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-user-graduate"></i> Student</h3>
+<p class="user-info">{{ user.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'Student' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.study_materials') }}">
+        <i class="fas fa-book"></i> Study Materials
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}My Assignments{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="filterAssignments('all')">
+        <i class="fas fa-list"></i> All
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="filterAssignments('pending')">
+        <i class="fas fa-clock"></i> Pending
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="filterAssignments('submitted')">
+        <i class="fas fa-check"></i> Submitted
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="filterAssignments('overdue')">
+        <i class="fas fa-exclamation-triangle"></i> Overdue
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+{{ super() }}
+<style>
+/* Assignment Styles */
+.assignment-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.assignment-stat-card {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.assignment-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-blue));
+}
+
+.stat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+.stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.stat-icon.total { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.stat-icon.pending { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.stat-icon.submitted { background: linear-gradient(135deg, #22c55e, #16a34a); }
+.stat-icon.overdue { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.assignment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.assignment-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.assignment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.assignment-card.overdue {
+    border-left: 4px solid #ef4444;
+}
+
+.assignment-card.submitted {
+    border-left: 4px solid #22c55e;
+}
+
+.assignment-card.pending {
+    border-left: 4px solid #f59e0b;
+}
+
+.assignment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: var(--spacing-md);
+}
+
+.assignment-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 1.1rem;
+}
+
+.assignment-type {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.assignment-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.assignment-status.not_submitted { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+.assignment-status.submitted { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.assignment-status.late_submitted { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+.assignment-status.graded { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+
+.assignment-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.875rem;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    color: var(--text-secondary);
+}
+
+.meta-item i {
+    color: var(--accent-orange);
+    width: 16px;
+}
+
+.assignment-description {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.4;
+    margin-bottom: var(--spacing-md);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.assignment-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: space-between;
+    align-items: center;
+}
+
+.due-date {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 8px;
+}
+
+.due-date.upcoming {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.due-date.overdue {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.due-date.completed {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.grade-display {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.grade-display.excellent { color: #22c55e; }
+.grade-display.good { color: #3b82f6; }
+.grade-display.average { color: #f59e0b; }
+.grade-display.poor { color: #ef4444; }
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.modal-header {
+    padding: var(--spacing-xl);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.modal-close:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-xl);
+}
+
+.modal-footer {
+    padding: var(--spacing-xl);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-sm);
+    justify-content: flex-end;
+}
+
+/* Submission Form */
+.submission-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.form-textarea {
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 100px;
+    transition: all 0.3s ease;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+}
+
+.file-upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: var(--accent-orange);
+    background: rgba(255, 107, 53, 0.05);
+}
+
+.upload-icon {
+    font-size: 3rem;
+    color: var(--accent-orange);
+    margin-bottom: var(--spacing-md);
+}
+
+.upload-text {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.upload-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .assignment-stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .assignment-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .assignment-meta {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        margin: var(--spacing-md);
+        max-width: calc(100vw - 2 * var(--spacing-md));
+    }
+}
+</style>
+{% endblock %}
+
+{% block content_body %}
+<!-- Assignment Statistics -->
+<div class="assignment-stats-grid">
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon total">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.total or 0 }}</div>
+        </div>
+        <div class="stat-label">Total Assignments</div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon pending">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.pending or 0 }}</div>
+        </div>
+        <div class="stat-label">Pending Submissions</div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon submitted">
+                <i class="fas fa-check"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.submitted or 0 }}</div>
+        </div>
+        <div class="stat-label">Submitted</div>
+    </div>
+    
+    <div class="assignment-stat-card">
+        <div class="stat-header">
+            <div class="stat-icon overdue">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div class="stat-value">{{ assignment_stats.overdue or 0 }}</div>
+        </div>
+        <div class="stat-label">Overdue</div>
+    </div>
+</div>
+
+<!-- Assignments Grid -->
+<div class="assignment-grid">
+    {% for assignment in assignments %}
+    {% set submission = assignment.submission %}
+    {% set status_class = 'overdue' if assignment.is_overdue() and not submission.submitted_at else ('submitted' if submission.submitted_at else 'pending') %}
+    
+    <div class="assignment-card {{ status_class }}" data-status="{{ submission.status.value if submission else 'not_submitted' }}">
+        <div class="assignment-header">
+            <div>
+                <div class="assignment-title">{{ assignment.title }}</div>
+                <div class="assignment-type">{{ assignment.type.value.replace('_', ' ').title() }}</div>
+            </div>
+            <div class="assignment-status {{ submission.status.value if submission else 'not_submitted' }}">
+                {{ submission.status.value.replace('_', ' ').title() if submission else 'Not Submitted' }}
+            </div>
+        </div>
+        
+        <div class="assignment-meta">
+            <div class="meta-item">
+                <i class="fas fa-user"></i>
+                <span>{{ assignment.teacher.user.name if assignment.teacher and assignment.teacher.user else 'Teacher' }}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-book"></i>
+                <span>{{ assignment.subject.name if assignment.subject else 'General' }}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-calendar"></i>
+                <span>{{ assignment.assigned_date.strftime('%d/%m/%Y') }}</span>
+            </div>
+            <div class="meta-item">
+                <i class="fas fa-star"></i>
+                <span>{{ assignment.max_marks }} marks</span>
+            </div>
+        </div>
+        
+        {% if assignment.description %}
+        <div class="assignment-description">
+            {{ assignment.description }}
+        </div>
+        {% endif %}
+        
+        <div class="assignment-actions">
+            <div class="due-date {{ 'overdue' if assignment.is_overdue() else 'upcoming' }}">
+                {% if assignment.due_date %}
+                    {% if assignment.is_overdue() %}
+                        <i class="fas fa-exclamation-triangle"></i> Overdue
+                    {% else %}
+                        <i class="fas fa-clock"></i> Due {{ assignment.due_date.strftime('%d/%m/%Y %H:%M') }}
+                    {% endif %}
+                {% else %}
+                    <i class="fas fa-infinity"></i> No due date
+                {% endif %}
+            </div>
+            
+            <div style="display: flex; gap: var(--spacing-sm); align-items: center;">
+                {% if submission and submission.marks_obtained is not none %}
+                <div class="grade-display {{ 'excellent' if submission.get_percentage() >= 90 else 'good' if submission.get_percentage() >= 75 else 'average' if submission.get_percentage() >= 60 else 'poor' }}">
+                    <i class="fas fa-medal"></i>
+                    {{ submission.marks_obtained }}/{{ assignment.max_marks }} ({{ submission.get_percentage() }}%)
+                </div>
+                {% endif %}
+                
+                <button class="btn btn-sm btn-primary" onclick="viewAssignment({{ assignment.id }})">
+                    <i class="fas fa-eye"></i> View
+                </button>
+                
+                {% if not submission or submission.status.value == 'not_submitted' or (assignment.allow_multiple_submissions and submission.status.value != 'graded') %}
+                <button class="btn btn-sm btn-secondary" onclick="submitAssignment({{ assignment.id }})">
+                    <i class="fas fa-upload"></i> Submit
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not assignments %}
+    <div style="grid-column: 1 / -1; text-align: center; padding: var(--spacing-2xl); color: var(--text-muted);">
+        <i class="fas fa-tasks" style="font-size: 3rem; margin-bottom: var(--spacing-lg);"></i>
+        <h3>No Assignments Yet</h3>
+        <p>Your teachers haven't assigned any work yet. Check back later!</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+<!-- Assignment Submission Modal -->
+<div id="submissionModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-upload"></i> Submit Assignment</h3>
+            <button class="modal-close" onclick="closeModal('submissionModal')">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <form id="submissionForm" class="submission-form">
+                <input type="hidden" id="assignmentId">
+                
+                <div class="form-group">
+                    <label class="form-label">Assignment Text/Answer</label>
+                    <textarea class="form-textarea" id="submissionText" rows="6" placeholder="Type your answer or solution here..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Attach Files (Optional)</label>
+                    <div class="file-upload-area" onclick="document.getElementById('submissionFiles').click()">
+                        <div class="upload-icon">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                        </div>
+                        <div class="upload-text">Click to upload files or drag and drop</div>
+                        <div class="upload-hint">PDF, DOC, DOCX, TXT, Images (Max 10MB each)</div>
+                        <input type="file" id="submissionFiles" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" style="display: none;">
+                    </div>
+                    <div id="submissionFileList" class="file-list"></div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('submissionModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitAssignmentForm()">
+                <i class="fas fa-paper-plane"></i> Submit Assignment
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+{{ super() }}
+<script>
+// Assignment Management Functions
+function viewAssignment(assignmentId) {
+    window.location.href = `{{ url_for('student.view_assignment', assignment_id=0) }}`.replace('0', assignmentId);
+}
+
+function submitAssignment(assignmentId) {
+    document.getElementById('assignmentId').value = assignmentId;
+    document.getElementById('submissionModal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    // Reset form
+    if (modalId === 'submissionModal') {
+        document.getElementById('submissionForm').reset();
+        document.getElementById('submissionFileList').innerHTML = '';
+    }
+}
+
+function submitAssignmentForm() {
+    const assignmentId = document.getElementById('assignmentId').value;
+    const submissionText = document.getElementById('submissionText').value;
+    const files = document.getElementById('submissionFiles').files;
+    
+    if (!submissionText.trim() && files.length === 0) {
+        showNotification('Please provide either text answer or attach files.', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('assignment_id', assignmentId);
+    formData.append('submission_text', submissionText);
+    
+    // Add files
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+    }
+    
+    // Show loading state
+    const submitBtn = event.target;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+    submitBtn.disabled = true;
+    
+    fetch(`{{ url_for('student.submit_assignment') }}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Assignment submitted successfully!', 'success');
+            closeModal('submissionModal');
+            location.reload();
+        } else {
+            showNotification('Error submitting assignment: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred while submitting assignment.', 'error');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit Assignment';
+        submitBtn.disabled = false;
+    });
+}
+
+// Filter assignments
+function filterAssignments(filter) {
+    const cards = document.querySelectorAll('.assignment-card');
+    
+    cards.forEach(card => {
+        const status = card.dataset.status;
+        let show = false;
+        
+        switch (filter) {
+            case 'all':
+                show = true;
+                break;
+            case 'pending':
+                show = status === 'not_submitted';
+                break;
+            case 'submitted':
+                show = ['submitted', 'late_submitted', 'graded'].includes(status);
+                break;
+            case 'overdue':
+                show = card.classList.contains('overdue') && status === 'not_submitted';
+                break;
+        }
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+    
+    // Update button states
+    document.querySelectorAll('.header-actions button').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+    event.target.classList.remove('btn-outline');
+    event.target.classList.add('btn-primary');
+}
+
+// File upload handling
+document.getElementById('submissionFiles').addEventListener('change', function(e) {
+    displaySelectedFiles(e.target.files, 'submissionFileList');
+});
+
+function displaySelectedFiles(files, containerId) {
+    const fileList = document.getElementById(containerId);
+    fileList.innerHTML = '';
+    
+    Array.from(files).forEach((file, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'file-item';
+        fileItem.innerHTML = `
+            <div class="file-info">
+                <i class="fas fa-file file-icon"></i>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                </div>
+            </div>
+            <button class="file-remove" onclick="removeFile(${index}, '${containerId}')">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        fileList.appendChild(fileItem);
+    });
+}
+
+function removeFile(index, containerId) {
+    const fileInput = document.getElementById(containerId.replace('List', 's'));
+    const dt = new DataTransfer();
+    const files = fileInput.files;
+    
+    for (let i = 0; i < files.length; i++) {
+        if (i !== index) {
+            dt.items.add(files[i]);
+        }
+    }
+    
+    fileInput.files = dt.files;
+    displaySelectedFiles(fileInput.files, containerId);
+}
+
+// Utility Functions
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+</script>
+{% endblock %}

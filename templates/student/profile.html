@@ -1,0 +1,243 @@
+{% extends "form_base.html" %}
+
+{% block title %}My Profile - {{ student.name }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}My Profile{% endblock %}
+
+{% block form_content %}
+<div class="dashboard-grid">
+    <!-- Profile Card -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-id-card"></i> Profile Information</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: flex; gap: var(--spacing-xl); align-items: flex-start; margin-bottom: var(--spacing-xl);">
+                <!-- Photo -->
+                <div style="flex-shrink: 0;">
+                    {% if student.photo_url %}
+                    <img src="{{ url_for('static', filename='uploads/' + student.photo_url) }}" 
+                         alt="{{ student.name }}" 
+                         style="width: 120px; height: 120px; border-radius: var(--radius-2xl); object-fit: cover; border: 3px solid var(--accent-orange);">
+                    {% else %}
+                    <div style="width: 120px; height: 120px; border-radius: var(--radius-2xl); background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover)); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 3rem; font-weight: 700;">
+                        {{ student.name[0].upper() }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Basic Info -->
+                <div style="flex: 1;">
+                    <h2 style="color: var(--text-primary); margin-bottom: var(--spacing-lg);">{{ student.name }}</h2>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                        <div>
+                            <label class="form-label">Admission Number</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.admission_no }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Roll Number</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.roll_number }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Class</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.class_info.get_display_name() if student.class_info else 'Not Assigned' }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Date of Birth</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ student.date_of_birth.strftime('%d/%m/%Y') if student.date_of_birth else 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Information -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-user-circle"></i> Personal Information</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg);">
+                <div>
+                    <label class="form-label">Gender</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.gender.title() }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Blood Group</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.blood_group or 'N/A' }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Age</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.get_age() }} years</p>
+                </div>
+                <div>
+                    <label class="form-label">Admission Date</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.admission_date.strftime('%d/%m/%Y') if student.admission_date else 'N/A' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Family Information -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-users"></i> Family Information</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg);">
+                <div>
+                    <label class="form-label">Father's Name</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.father_name }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Mother's Name</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.mother_name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-address-book"></i> Contact Information</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg);">
+                <div>
+                    <label class="form-label">Phone Number</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.phone }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Email Address</label>
+                    <p style="color: var(--text-primary); font-weight: 600;">{{ student.email or 'N/A' }}</p>
+                </div>
+                <div>
+                    <label class="form-label">Address</label>
+                    <p style="color: var(--text-primary);">{{ student.address }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Status -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-graduation-cap"></i> Academic Status</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-lg);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="form-label">Status</span>
+                    <span class="status-badge {{ 'active' if student.status.value == 'active' else 'pending' }}">
+                        {{ student.status.value.title() }}
+                    </span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="form-label">Academic Year</span>
+                    <span style="color: var(--text-primary); font-weight: 600;">2024-25</span>
+                </div>
+                {% if student.class_info %}
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="form-label">Class Capacity</span>
+                    <span style="color: var(--text-primary); font-weight: 600;">{{ student.class_info.capacity }} students</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-download"></i> Documents</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <button onclick="downloadIDCard()" class="btn btn-primary btn-sm">
+                    <i class="fas fa-id-card"></i>
+                    <span>ID Card</span>
+                </button>
+                <button onclick="downloadFeeReceipt()" class="btn btn-success btn-sm">
+                    <i class="fas fa-receipt"></i>
+                    <span>Fee Receipts</span>
+                </button>
+                <button onclick="downloadAttendanceReport()" class="btn btn-info btn-sm">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Attendance Report</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function downloadIDCard() {
+    // Open ID card download
+    window.open(`/student/id-card`, '_blank');
+}
+
+function downloadFeeReceipt() {
+    // Open fee receipts page
+    window.location.href = '/student/fees#receipts';
+}
+
+function downloadAttendanceReport() {
+    // Open attendance report
+    window.open(`/student/attendance/report`, '_blank');
+}
+</script>
+{% endblock %}

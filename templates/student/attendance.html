@@ -1,0 +1,319 @@
+{% extends "content_base.html" %}
+
+{% block title %}Attendance - Student Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-graduation-cap"></i> Student Portal</h3>
+<p class="user-info">{{ student.name }}</p>
+<p class="class-info">{{ student.class_info.get_display_name() if student.class_info else 'No Class' }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('student.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('student.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.notifications') }}">
+        <i class="fas fa-bell"></i> Notifications
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('student.reports') }}">
+        <i class="fas fa-chart-bar"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}Attendance Record{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-md); align-items: center;">
+    <select class="form-select" style="min-width: 120px;" onchange="changeMonth(this.value)">
+        {% for i in range(1, 13) %}
+            <option value="{{ i }}" {% if i == current_month %}selected{% endif %}>
+                {% set month_names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] %}
+                {{ month_names[i-1] }}
+            </option>
+        {% endfor %}
+    </select>
+    <select class="form-select" style="min-width: 100px;" onchange="changeYear(this.value)">
+        {% for year in range(current_year - 2, current_year + 1) %}
+            <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Monthly Statistics -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-calendar-check"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ monthly_stats.present_days if monthly_stats else 0 }}</h3>
+            <p>Present Days</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--error), #EF4444);">
+            <i class="fas fa-calendar-times"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ monthly_stats.absent_days if monthly_stats else 0 }}</h3>
+            <p>Absent Days</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-calendar-alt"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ monthly_stats.leave_days if monthly_stats else 0 }}</h3>
+            <p>Leave Days</p>
+            <small>This Month</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-percentage"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ "%.1f"|format(monthly_stats.percentage) if monthly_stats else 0 }}%</h3>
+            <p>Attendance Rate</p>
+            <small>This Month</small>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Records -->
+<div class="dashboard-grid">
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-list"></i> Attendance Records</h3>
+            <div style="display: flex; gap: var(--spacing-sm);">
+                <span class="badge badge-success">Present</span>
+                <span class="badge badge-error">Absent</span>
+                <span class="badge badge-warning">Leave</span>
+            </div>
+        </div>
+        <div class="card-content">
+            {% if attendance_records %}
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Status</th>
+                                <th>Remarks</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in attendance_records %}
+                                <tr>
+                                    <td>{{ record.date.strftime('%d %b %Y') }}</td>
+                                    <td>{{ record.date.strftime('%A') }}</td>
+                                    <td>
+                                        {% if record.status.value == 'present' %}
+                                            <span class="status-badge present">
+                                                <i class="fas fa-check"></i> Present
+                                            </span>
+                                        {% elif record.status.value == 'absent' %}
+                                            <span class="status-badge absent">
+                                                <i class="fas fa-times"></i> Absent
+                                            </span>
+                                        {% elif record.status.value == 'leave' %}
+                                            <span class="status-badge leave">
+                                                <i class="fas fa-calendar-alt"></i> Leave
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.remarks or '-' }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-calendar-times"></i>
+                    <h3>No Attendance Records</h3>
+                    <p>No attendance records found for the selected month.</p>
+                    <small>Try selecting a different month or contact your teacher.</small>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Calendar View -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-calendar"></i> Calendar View</h3>
+        </div>
+        <div class="card-content">
+            <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: var(--spacing-md);">
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Sun</div>
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Mon</div>
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Tue</div>
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Wed</div>
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Thu</div>
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Fri</div>
+                <div style="text-align: center; font-weight: 600; color: var(--text-muted); padding: var(--spacing-sm);">Sat</div>
+            </div>
+            
+            <div id="calendar-grid" style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;">
+                <!-- Calendar will be generated by JavaScript -->
+            </div>
+            
+            <div style="margin-top: var(--spacing-lg); display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem;">
+                <div style="display: flex; gap: var(--spacing-md);">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <div style="width: 12px; height: 12px; background-color: var(--success); border-radius: 2px;"></div>
+                        <span>Present</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <div style="width: 12px; height: 12px; background-color: var(--error); border-radius: 2px;"></div>
+                        <span>Absent</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <div style="width: 12px; height: 12px; background-color: var(--warning); border-radius: 2px;"></div>
+                        <span>Leave</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function changeMonth(month) {
+    const url = new URL(window.location);
+    url.searchParams.set('month', month);
+    window.location.href = url.toString();
+}
+
+function changeYear(year) {
+    const url = new URL(window.location);
+    url.searchParams.set('year', year);
+    window.location.href = url.toString();
+}
+
+// Generate calendar
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarData = {{ calendar_data|tojson }};
+    const currentMonth = {{ current_month }};
+    const currentYear = {{ current_year }};
+    
+    generateCalendar(currentYear, currentMonth, calendarData);
+});
+
+function generateCalendar(year, month, attendanceData) {
+    const calendarGrid = document.getElementById('calendar-grid');
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const startDate = firstDay.getDay(); // Day of week (0 = Sunday)
+    const daysInMonth = lastDay.getDate();
+    
+    calendarGrid.innerHTML = '';
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startDate; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.style.padding = 'var(--spacing-sm)';
+        calendarGrid.appendChild(emptyCell);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.style.cssText = `
+            padding: var(--spacing-sm);
+            text-align: center;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+        `;
+        
+        dayCell.textContent = day;
+        
+        if (attendanceData[day]) {
+            const status = attendanceData[day].status;
+            if (status === 'present') {
+                dayCell.style.backgroundColor = 'var(--success)';
+                dayCell.style.color = 'white';
+            } else if (status === 'absent') {
+                dayCell.style.backgroundColor = 'var(--error)';
+                dayCell.style.color = 'white';
+            } else if (status === 'leave') {
+                dayCell.style.backgroundColor = 'var(--warning)';
+                dayCell.style.color = 'white';
+            }
+            
+            if (attendanceData[day].remarks) {
+                dayCell.title = attendanceData[day].remarks;
+            }
+        } else {
+            dayCell.style.backgroundColor = 'var(--bg-tertiary)';
+            dayCell.style.color = 'var(--text-muted)';
+        }
+        
+        dayCell.addEventListener('mouseenter', function() {
+            if (!attendanceData[day]) {
+                this.style.backgroundColor = 'var(--bg-hover)';
+            }
+        });
+        
+        dayCell.addEventListener('mouseleave', function() {
+            if (!attendanceData[day]) {
+                this.style.backgroundColor = 'var(--bg-tertiary)';
+            }
+        });
+        
+        calendarGrid.appendChild(dayCell);
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Super Admin Login - School Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Super Admin specific styling */
+.auth-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Enhanced background for super admin with red accents */
+.auth-container::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(255, 0, 0, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(255, 111, 0, 0.05) 0%, transparent 50%),
+        linear-gradient(135deg, rgba(255, 0, 0, 0.02) 0%, transparent 50%);
+    z-index: -1;
+}
+
+.super-admin-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg-secondary);
+    border-radius: var(--radius-2xl);
+    padding: var(--spacing-2xl);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 0, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.super-admin-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #FF0000, var(--accent-orange), #FF0000);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.super-admin-card:hover {
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9);
+    transform: translateY(-2px);
+}
+
+.super-admin-header {
+    text-align: center;
+    margin-bottom: var(--spacing-2xl);
+}
+
+.super-admin-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #FF0000, var(--accent-orange));
+    color: white;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--spacing-lg);
+    box-shadow: 0 4px 12px rgba(255, 0, 0, 0.3);
+    font-family: var(--font-mono);
+}
+
+.super-admin-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-family: var(--font-mono);
+}
+
+.super-admin-subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.security-notice {
+    background: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+    text-align: center;
+}
+
+.security-notice .icon {
+    font-size: 1.25rem;
+    margin-bottom: var(--spacing-xs);
+    display: block;
+}
+
+.security-notice .text {
+    font-size: 0.75rem;
+    color: #FF6B6B;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.super-admin-form .form-group {
+    margin-bottom: var(--spacing-xl);
+}
+
+.super-admin-form .form-label {
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    display: block;
+}
+
+.super-admin-form .form-input {
+    background: rgba(255, 255, 255, 0.02);
+    border: 2px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.super-admin-form .form-input:focus {
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 3px rgba(255, 111, 0, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.super-admin-btn {
+    width: 100%;
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, #FF0000, var(--accent-orange));
+    border: none;
+    border-radius: var(--radius-lg);
+    color: white;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    font-family: var(--font-mono);
+}
+
+.super-admin-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.super-admin-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 0, 0, 0.4);
+}
+
+.super-admin-btn:hover::before {
+    left: 100%;
+}
+
+.super-admin-btn:active {
+    transform: translateY(0);
+}
+
+.super-admin-btn.loading {
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.super-admin-btn.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid transparent;
+    border-top: 2px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.back-link {
+    text-align: center;
+    margin-top: var(--spacing-lg);
+}
+
+.back-link a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.back-link a:hover {
+    color: var(--accent-orange);
+    transform: translateX(-2px);
+}
+
+/* Enhanced alert styles for super admin */
+.alert {
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.alert-error {
+    background: rgba(244, 67, 54, 0.1);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    color: #FF6B6B;
+}
+
+.alert-success {
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    color: #81C784;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .super-admin-card {
+        margin: var(--spacing-lg);
+        padding: var(--spacing-xl);
+        border-radius: var(--radius-xl);
+    }
+    
+    .super-admin-title {
+        font-size: 1.5rem;
+    }
+}
+
+/* Security scan animation */
+.security-scan {
+    opacity: 0;
+    transform: scale(0.95);
+    animation: securityScan 0.8s ease forwards;
+}
+
+@keyframes securityScan {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="super-admin-card security-scan">
+        <div class="super-admin-header">
+            <div class="super-admin-badge">
+                <i class="fas fa-shield-alt"></i> Super Admin
+            </div>
+            <h1 class="super-admin-title">System Access</h1>
+            <p class="super-admin-subtitle">Authorized personnel only</p>
+        </div>
+        
+        <div class="security-notice">
+            <span class="icon">⚠️</span>
+            <div class="text">This is a restricted access area. All login attempts are logged and monitored.</div>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">
+                        <i class=\"fas fa-{{ 'exclamation-triangle' if category == 'error' else 'check-circle' }}\"></i>
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Login Form -->
+        <form class="super-admin-form" method="POST" id="loginForm">
+            <div class="form-group">
+                <label class="form-label" for="email">
+                    <i class="fas fa-user-shield"></i> Administrator Email
+                </label>
+                <input type="email" class="form-input" id="email" name="email" 
+                       placeholder="Enter your admin email" required autocomplete="email">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="password">
+                    <i class="fas fa-key"></i> Master Password
+                </label>
+                <input type="password" class="form-input" id="password" name="password" 
+                       placeholder="Enter your master password" required autocomplete="current-password">
+            </div>
+            
+            <button type="submit" class="super-admin-btn" id="loginBtn">
+                <span class="btn-text">
+                    <i class="fas fa-unlock"></i> Access System
+                </span>
+            </button>
+        </form>
+        
+        <div class="back-link">
+            <a href="{{ url_for('auth.login') }}">
+                <i class="fas fa-arrow-left"></i> Back to main login
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form submission with loading state
+const loginForm = document.getElementById('loginForm');
+const loginBtn = document.getElementById('loginBtn');
+
+loginForm.addEventListener('submit', (e) => {
+    loginBtn.classList.add('loading');
+    const btnText = loginBtn.querySelector('.btn-text');
+    if (btnText) {
+        btnText.style.opacity = '0';
+    }
+});
+
+// Auto-dismiss alerts
+document.querySelectorAll('.alert').forEach(alert => {
+    setTimeout(() => {
+        alert.style.opacity = '0';
+        alert.style.transform = 'translateY(-10px)';
+        setTimeout(() => alert.remove(), 300);
+    }, 5000);
+});
+
+// Security scan animation on load
+document.addEventListener('DOMContentLoaded', () => {
+    // Add some delay for dramatic effect
+    setTimeout(() => {
+        const card = document.querySelector('.super-admin-card');
+        if (card) {
+            card.classList.add('security-scan');
+        }
+    }, 100);
+});
+
+// Enhanced security theater
+let securityCheckInterval;
+document.addEventListener('DOMContentLoaded', () => {
+    // Simulate periodic security checks
+    securityCheckInterval = setInterval(() => {
+        const badge = document.querySelector('.super-admin-badge');
+        if (badge) {
+            badge.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+                badge.style.transform = 'scale(1)';
+            }, 200);
+        }
+    }, 10000);
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (securityCheckInterval) {
+        clearInterval(securityCheckInterval);
+    }
+});
+</script>
+{% endblock %}

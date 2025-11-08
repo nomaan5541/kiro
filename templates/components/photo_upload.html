@@ -1,0 +1,323 @@
+<!-- Photo Upload Component -->
+<!-- Usage: {% include 'components/photo_upload.html' with context %} -->
+<!-- Required variables: upload_url, current_photo_url (optional), entity_type, entity_id -->
+
+<div class="photo-upload-component">
+    <div class="photo-preview">
+        {% if current_photo_url %}
+        <img id="photoPreview" src="{{ url_for('files.serve_' + entity_type + '_photo', **{entity_type + '_id': entity_id}) }}" 
+             alt="Current Photo" class="current-photo">
+        {% else %}
+        <div id="photoPreview" class="photo-placeholder">
+            <i class="fas fa-user-circle"></i>
+            <span>No Photo</span>
+        </div>
+        {% endif %}
+        
+        <div class="photo-overlay">
+            <button type="button" class="btn-upload" onclick="triggerPhotoUpload()">
+                <i class="fas fa-camera"></i>
+                <span>{{ 'Change Photo' if current_photo_url else 'Upload Photo' }}</span>
+            </button>
+        </div>
+    </div>
+    
+    <input type="file" id="photoInput" accept="image/*" style="display: none;" onchange="handlePhotoSelect(event)">
+    
+    <div class="upload-progress" id="uploadProgress" style="display: none;">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <span class="progress-text" id="progressText">Uploading...</span>
+    </div>
+    
+    <div class="photo-info">
+        <small class="text-muted">
+            Supported formats: JPG, PNG, GIF (Max 5MB)
+        </small>
+    </div>
+</div>
+
+<style>
+.photo-upload-component {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.photo-preview {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.photo-preview:hover {
+    border-color: var(--accent-orange);
+    transform: scale(1.05);
+}
+
+.current-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.photo-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    color: var(--text-muted);
+}
+
+.photo-placeholder i {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-xs);
+}
+
+.photo-placeholder span {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.photo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.photo-preview:hover .photo-overlay {
+    opacity: 1;
+}
+
+.btn-upload {
+    background: var(--accent-orange);
+    color: white;
+    border: none;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    transition: all 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.btn-upload:hover {
+    background: var(--accent-orange-dark);
+    transform: translateY(-2px);
+}
+
+.btn-upload i {
+    font-size: 1.2rem;
+}
+
+.upload-progress {
+    width: 200px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: var(--bg-secondary);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: var(--spacing-xs);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-green));
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.photo-info {
+    text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .photo-preview {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .btn-upload {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: 0.75rem;
+    }
+    
+    .btn-upload i {
+        font-size: 1rem;
+    }
+}
+</style>
+
+<script>
+// Photo upload functionality
+function triggerPhotoUpload() {
+    document.getElementById('photoInput').click();
+}
+
+function handlePhotoSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+        showNotification('Please select an image file.', 'error');
+        return;
+    }
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+        showNotification('File size must be less than 5MB.', 'error');
+        return;
+    }
+    
+    // Preview the image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.getElementById('photoPreview');
+        preview.innerHTML = `<img src="${e.target.result}" alt="Preview" class="current-photo">`;
+    };
+    reader.readAsDataURL(file);
+    
+    // Upload the file
+    uploadPhoto(file);
+}
+
+function uploadPhoto(file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    // Show progress
+    const progressDiv = document.getElementById('uploadProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+    
+    progressDiv.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressText.textContent = 'Uploading...';
+    
+    // Create XMLHttpRequest for progress tracking
+    const xhr = new XMLHttpRequest();
+    
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            progressFill.style.width = percentComplete + '%';
+            progressText.textContent = `Uploading... ${Math.round(percentComplete)}%`;
+        }
+    });
+    
+    xhr.addEventListener('load', function() {
+        progressDiv.style.display = 'none';
+        
+        if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+                showNotification('Photo uploaded successfully!', 'success');
+                // Optionally reload the page or update the UI
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotification('Upload failed: ' + response.message, 'error');
+            }
+        } else {
+            showNotification('Upload failed. Please try again.', 'error');
+        }
+    });
+    
+    xhr.addEventListener('error', function() {
+        progressDiv.style.display = 'none';
+        showNotification('Upload error occurred. Please try again.', 'error');
+    });
+    
+    // Send the request
+    xhr.open('POST', '{{ upload_url }}');
+    xhr.send(formData);
+}
+
+// Notification function (if not already defined)
+function showNotification(message, type) {
+    // Check if notification function already exists
+    if (typeof window.showNotification === 'function') {
+        return window.showNotification(message, type);
+    }
+    
+    // Create simple notification
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#22c55e' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
+
+// Add CSS animation
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+`;
+document.head.appendChild(style);
+</script>

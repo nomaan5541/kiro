@@ -1,0 +1,375 @@
+{% extends "content_base.html" %}
+
+{% block title %}Activity Logs - Super Admin{% endblock %}
+
+{% block page_title %}System Activity Logs{% endblock %}
+
+{% block page_description %}Monitor all system activities and user actions{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('super_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.schools') }}">
+        <i class="fas fa-school"></i> Schools
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.users') }}">
+        <i class="fas fa-users"></i> Users
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.settings') }}">
+        <i class="fas fa-cog"></i> Settings
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('super_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('super_admin.activity_logs') }}">
+        <i class="fas fa-history"></i> Activity Logs
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="exportLogs()">
+        <i class="fas fa-download"></i> Export Logs
+    </button>
+    <button class="btn btn-outline btn-sm" onclick="clearOldLogs()">
+        <i class="fas fa-trash"></i> Clear Old Logs
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="refreshLogs()">
+        <i class="fas fa-sync"></i> Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Filters -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-lg);">
+        <form method="GET" style="display: flex; gap: var(--spacing-md); align-items: end; flex-wrap: wrap;">
+            <div style="min-width: 150px;">
+                <label class="form-label">Date</label>
+                <input type="date" name="date" value="{{ date_filter }}" class="form-input">
+            </div>
+            
+            <div style="min-width: 200px;">
+                <label class="form-label">User</label>
+                <select name="user" class="form-select">
+                    <option value="">All Users</option>
+                    {% for user_item in users_list %}
+                        <option value="{{ user_item.id }}" 
+                                {% if user_filter == user_item.id|string %}selected{% endif %}>
+                            {{ user_item.name }} ({{ user_item.email }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div style="min-width: 150px;">
+                <label class="form-label">Action Type</label>
+                <select name="action" class="form-select">
+                    <option value="">All Actions</option>
+                    <option value="login" {% if action_filter == 'login' %}selected{% endif %}>Login</option>
+                    <option value="logout" {% if action_filter == 'logout' %}selected{% endif %}>Logout</option>
+                    <option value="create" {% if action_filter == 'create' %}selected{% endif %}>Create</option>
+                    <option value="update" {% if action_filter == 'update' %}selected{% endif %}>Update</option>
+                    <option value="delete" {% if action_filter == 'delete' %}selected{% endif %}>Delete</option>
+                    <option value="view" {% if action_filter == 'view' %}selected{% endif %}>View</option>
+                    <option value="export" {% if action_filter == 'export' %}selected{% endif %}>Export</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: var(--spacing-xs);">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Filter
+                </button>
+                <button type="button" class="btn btn-outline" onclick="clearFilters()">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Activity Summary -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-primary); font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-eye"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 1.5rem; color: var(--color-primary);">{{ activities.total if activities else 0 }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Total Activities</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-success); font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-sign-in-alt"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 1.5rem; color: var(--color-success);">0</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Logins Today</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-warning); font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 1.5rem; color: var(--color-warning);">0</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Security Events</p>
+        </div>
+        
+        <div class="tactical-card text-center">
+            <div style="color: var(--color-error); font-size: 2rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-ban"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 1.5rem; color: var(--color-error);">0</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--color-muted);">Failed Attempts</p>
+        </div>
+    </div>
+
+    <!-- Activity Logs -->
+    {% if activities and activities.items %}
+        <div class="tactical-card">
+            <div class="table-responsive">
+                <table class="tactical-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Resource</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in activities.items %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>{{ activity.created_at.strftime('%Y-%m-%d') if activity.created_at else 'N/A' }}</strong>
+                                    <br><small class="text-muted">{{ activity.created_at.strftime('%H:%M:%S') if activity.created_at else 'N/A' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if activity.user %}
+                                    <div>
+                                        <strong>{{ activity.user.name }}</strong>
+                                        <br><small class="text-muted">{{ activity.user.email }}</small>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">System</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if activity.activity_type %}
+                                    {% if 'login' in activity.activity_type.value.lower() %}
+                                        <span class="badge badge-success">{{ activity.activity_type.value }}</span>
+                                    {% elif 'logout' in activity.activity_type.value.lower() %}
+                                        <span class="badge badge-info">{{ activity.activity_type.value }}</span>
+                                    {% elif 'create' in activity.activity_type.value.lower() %}
+                                        <span class="badge badge-primary">{{ activity.activity_type.value }}</span>
+                                    {% elif 'update' in activity.activity_type.value.lower() %}
+                                        <span class="badge badge-warning">{{ activity.activity_type.value }}</span>
+                                    {% elif 'delete' in activity.activity_type.value.lower() %}
+                                        <span class="badge badge-error">{{ activity.activity_type.value }}</span>
+                                    {% else %}
+                                        <span class="badge badge-outline">{{ activity.activity_type.value }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge badge-outline">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if activity.entity_type and activity.entity_id %}
+                                    {{ activity.entity_type }} #{{ activity.entity_id }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if activity.ip_address %}
+                                    <code>{{ activity.ip_address }}</code>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge badge-success">Success</span>
+                            </td>
+                            <td>
+                                {% if activity.description %}
+                                    <span title="{{ activity.description }}">
+                                        {{ activity.description[:50] }}{% if activity.description|length > 50 %}...{% endif %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if activities.pages > 1 %}
+            <div style="display: flex; justify-content: center; align-items: center; gap: var(--spacing-sm); margin-top: var(--spacing-lg);">
+                {% if activities.has_prev %}
+                    <a href="{{ url_for('super_admin.activity_logs', page=activities.prev_num, date=date_filter, user=user_filter, action=action_filter) }}" 
+                       class="btn btn-outline btn-sm">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                {% endif %}
+                
+                {% for page_num in activities.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != activities.page %}
+                            <a href="{{ url_for('super_admin.activity_logs', page=page_num, date=date_filter, user=user_filter, action=action_filter) }}" 
+                               class="btn btn-outline btn-sm">
+                                {{ page_num }}
+                            </a>
+                        {% else %}
+                            <span class="btn btn-primary btn-sm">{{ page_num }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span>...</span>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if activities.has_next %}
+                    <a href="{{ url_for('super_admin.activity_logs', page=activities.next_num, date=date_filter, user=user_filter, action=action_filter) }}" 
+                       class="btn btn-outline btn-sm">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="tactical-card text-center" style="padding: var(--spacing-xl);">
+            <i class="fas fa-history" style="font-size: 3rem; color: var(--color-muted); margin-bottom: var(--spacing-md);"></i>
+            <h3>No Activity Logs Found</h3>
+            <p>{% if date_filter or user_filter or action_filter %}Try adjusting your filters{% else %}No activities recorded yet{% endif %}</p>
+        </div>
+    {% endif %}
+
+    <!-- Real-time Activity Feed -->
+    <div class="tactical-card" style="margin-top: var(--spacing-xl);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h3><i class="fas fa-broadcast-tower"></i> Real-time Activity Feed</h3>
+            <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                <span class="badge badge-success" id="connectionStatus">Connected</span>
+                <button class="btn btn-outline btn-sm" onclick="toggleRealTime()">
+                    <i class="fas fa-pause" id="realTimeIcon"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div id="realTimeActivities" style="max-height: 300px; overflow-y: auto;">
+            <div class="text-center" style="padding: var(--spacing-lg); color: var(--color-muted);">
+                <i class="fas fa-satellite-dish"></i>
+                <p>Waiting for real-time activities...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let realTimeEnabled = true;
+
+function clearFilters() {
+    window.location.href = '{{ url_for("super_admin.activity_logs") }}';
+}
+
+function exportLogs() {
+    alert('Log export functionality will be implemented soon.');
+}
+
+function clearOldLogs() {
+    if (confirm('Are you sure you want to clear old logs? This action cannot be undone.')) {
+        alert('Clear old logs functionality will be implemented soon.');
+    }
+}
+
+function refreshLogs() {
+    window.location.reload();
+}
+
+function toggleRealTime() {
+    realTimeEnabled = !realTimeEnabled;
+    const icon = document.getElementById('realTimeIcon');
+    const status = document.getElementById('connectionStatus');
+    
+    if (realTimeEnabled) {
+        icon.className = 'fas fa-pause';
+        status.textContent = 'Connected';
+        status.className = 'badge badge-success';
+    } else {
+        icon.className = 'fas fa-play';
+        status.textContent = 'Paused';
+        status.className = 'badge badge-warning';
+    }
+}
+
+// Simulate real-time activity updates
+function addRealTimeActivity(activity) {
+    if (!realTimeEnabled) return;
+    
+    const container = document.getElementById('realTimeActivities');
+    const activityElement = document.createElement('div');
+    activityElement.style.cssText = `
+        padding: var(--spacing-sm);
+        border-bottom: 1px solid var(--color-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    `;
+    
+    activityElement.innerHTML = `
+        <div>
+            <strong>${activity.user}</strong> ${activity.action}
+            <br><small class="text-muted">${activity.timestamp}</small>
+        </div>
+        <span class="badge badge-${activity.type}">${activity.status}</span>
+    `;
+    
+    container.insertBefore(activityElement, container.firstChild);
+    
+    // Keep only last 10 activities
+    while (container.children.length > 10) {
+        container.removeChild(container.lastChild);
+    }
+}
+
+// Simulate some real-time activities (replace with actual WebSocket connection)
+setInterval(() => {
+    if (realTimeEnabled && Math.random() > 0.7) {
+        const activities = [
+            { user: 'John Doe', action: 'logged in', timestamp: new Date().toLocaleTimeString(), status: 'Success', type: 'success' },
+            { user: 'Jane Smith', action: 'created student', timestamp: new Date().toLocaleTimeString(), status: 'Success', type: 'primary' },
+            { user: 'Admin User', action: 'updated settings', timestamp: new Date().toLocaleTimeString(), status: 'Success', type: 'warning' }
+        ];
+        
+        const randomActivity = activities[Math.floor(Math.random() * activities.length)];
+        addRealTimeActivity(randomActivity);
+    }
+}, 5000);
+</script>
+{% endblock %}

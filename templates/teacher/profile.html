@@ -1,0 +1,401 @@
+{% extends "form_base.html" %}
+
+{% block title %}Teacher Profile - {{ user.name }}{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}My Profile{% endblock %}
+
+{% block form_content %}
+<div class="dashboard-grid">
+    <!-- Profile Information -->
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-id-card"></i> Profile Information</h3>
+            <button class="btn btn-primary btn-sm" onclick="editProfile()">
+                <i class="fas fa-edit"></i> Edit Profile
+            </button>
+        </div>
+        <div class="card-content">
+            <div style="display: flex; gap: var(--spacing-xl); align-items: flex-start; margin-bottom: var(--spacing-xl);">
+                <!-- Photo -->
+                <div style="flex-shrink: 0;">
+                    {% if teacher and teacher.photo_url %}
+                    <img src="{{ url_for('static', filename='uploads/' + teacher.photo_url) }}" 
+                         alt="{{ user.name }}" 
+                         style="width: 120px; height: 120px; border-radius: var(--radius-2xl); object-fit: cover; border: 3px solid var(--accent-orange);">
+                    {% else %}
+                    <div style="width: 120px; height: 120px; border-radius: var(--radius-2xl); background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-hover)); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-size: 3rem; font-weight: 700;">
+                        {{ user.name[0].upper() }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Basic Info -->
+                <div style="flex: 1;">
+                    <h2 style="color: var(--text-primary); margin-bottom: var(--spacing-lg);">{{ user.name }}</h2>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-lg);">
+                        <div>
+                            <label class="form-label">Employee ID</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ teacher.employee_id if teacher else 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Email</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ user.email }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Phone</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ teacher.phone if teacher else 'N/A' }}</p>
+                        </div>
+                        <div>
+                            <label class="form-label">Date of Joining</label>
+                            <p style="color: var(--text-primary); font-weight: 600; font-size: 1.125rem;">{{ teacher.date_of_joining.strftime('%d/%m/%Y') if teacher and teacher.date_of_joining else 'N/A' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Professional Information -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-briefcase"></i> Professional Details</h3>
+        </div>
+        <div class="card-content">
+            {% if teacher %}
+                <div class="list-container">
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Designation</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.designation or 'Teacher' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Department</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.department or 'General' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Experience</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.experience_years or 0 }} years</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Qualification</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.qualification or 'N/A' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Status</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span class="status-badge {{ 'active' if teacher.status.value == 'active' else 'pending' }}">
+                                {{ teacher.status.value.title() }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-user-circle"></i>
+                    <p>No professional information available</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Personal Information -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-user-circle"></i> Personal Information</h3>
+        </div>
+        <div class="card-content">
+            {% if teacher %}
+                <div class="list-container">
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Date of Birth</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.date_of_birth.strftime('%d/%m/%Y') if teacher.date_of_birth else 'N/A' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Gender</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.gender.title() if teacher.gender else 'N/A' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Blood Group</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.blood_group or 'N/A' }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">Address</div>
+                        </div>
+                        <div class="list-item-actions">
+                            <span style="color: var(--text-primary); font-weight: 600;">{{ teacher.address or 'N/A' }}</span>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-user-circle"></i>
+                    <p>No personal information available</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Teaching Statistics -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-chart-bar"></i> Teaching Statistics</h3>
+        </div>
+        <div class="card-content">
+            <div class="kpi-grid" style="grid-template-columns: 1fr;">
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--accent-orange); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                        {{ assigned_classes|length if assigned_classes else 0 }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Classes Assigned</div>
+                </div>
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--success); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                        {{ total_students if total_students else 0 }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Total Students</div>
+                </div>
+                <div style="text-align: center; padding: var(--spacing-lg);">
+                    <div style="color: var(--info); font-size: 2rem; font-weight: 700; margin-bottom: var(--spacing-sm);">
+                        {{ assignments_count if assignments_count else 0 }}
+                    </div>
+                    <div style="color: var(--text-muted); font-size: 0.875rem;">Assignments Created</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <a href="{{ url_for('teacher.edit_profile') }}" class="quick-action-btn">
+                    <i class="fas fa-edit"></i>
+                    <span>Edit Profile</span>
+                </a>
+                
+                <a href="{{ url_for('teacher.change_password') }}" class="quick-action-btn">
+                    <i class="fas fa-key"></i>
+                    <span>Change Password</span>
+                </a>
+                
+                <button class="quick-action-btn" onclick="downloadIDCard()">
+                    <i class="fas fa-id-card"></i>
+                    <span>Download ID Card</span>
+                </button>
+                
+                <a href="{{ url_for('teacher.schedule') }}" class="quick-action-btn">
+                    <i class="fas fa-calendar"></i>
+                    <span>View Schedule</span>
+                </a>
+                
+                <button class="quick-action-btn" onclick="contactAdmin()">
+                    <i class="fas fa-envelope"></i>
+                    <span>Contact Admin</span>
+                </button>
+                
+                <a href="{{ url_for('teacher.reports') }}" class="quick-action-btn">
+                    <i class="fas fa-chart-line"></i>
+                    <span>View Reports</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function editProfile() {
+    showNotification('Profile editing feature will be available soon', 'info');
+}
+
+function changePassword() {
+    showNotification('Password change feature will be available soon', 'info');
+}
+
+function downloadIDCard() {
+    showNotification('Generating ID card...', 'info');
+    
+    // Create a simple ID card using HTML5 Canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Set canvas size
+    canvas.width = 400;
+    canvas.height = 250;
+    
+    // Background
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Orange accent
+    ctx.fillStyle = '#ff6b35';
+    ctx.fillRect(0, 0, canvas.width, 8);
+    ctx.fillRect(0, canvas.height - 8, canvas.width, 8);
+    
+    // School name
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('TACTICAL OPS SCHOOL', canvas.width / 2, 35);
+    
+    // ID Card title
+    ctx.font = '14px Arial';
+    ctx.fillText('TEACHER ID CARD', canvas.width / 2, 55);
+    
+    // Teacher info
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText('{{ user.name }}', 20, 90);
+    
+    ctx.font = '12px Arial';
+    ctx.fillStyle = '#cccccc';
+    ctx.fillText('Employee ID: {{ teacher.employee_id if teacher else "N/A" }}', 20, 110);
+    ctx.fillText('Department: {{ teacher.department if teacher else "General" }}', 20, 130);
+    ctx.fillText('Designation: {{ teacher.designation if teacher else "Teacher" }}', 20, 150);
+    
+    // Contact info
+    ctx.fillText('Email: {{ user.email }}', 20, 180);
+    ctx.fillText('Phone: {{ teacher.phone if teacher else "N/A" }}', 20, 200);
+    
+    // Date
+    ctx.fillText('Issued: ' + new Date().toLocaleDateString(), 20, 230);
+    
+    // Convert to blob and download
+    canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '{{ user.name|replace(" ", "_") }}_ID_Card.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showNotification('ID card downloaded successfully!', 'success');
+    });
+}
+
+function viewSchedule() {
+    showNotification('Schedule feature will be available soon', 'info');
+}
+
+function contactAdmin() {
+    showNotification('Contact admin feature will be available soon', 'info');
+}
+
+function viewReports() {
+    showNotification('Reports feature will be available soon', 'info');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

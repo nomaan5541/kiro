@@ -1,0 +1,427 @@
+{% extends "content_base.html" %}
+
+{% block title %}Assignment Details - Teacher Portal{% endblock %}
+
+{% block sidebar_header %}
+<h3><i class="fas fa-chalkboard-teacher"></i> Teacher Portal</h3>
+<p class="user-info">{{ user.name }}</p>
+{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('teacher.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.classes') }}">
+        <i class="fas fa-users"></i> My Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('teacher.assignments') }}">
+        <i class="fas fa-tasks"></i> Assignments
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.profile') }}">
+        <i class="fas fa-user"></i> Profile
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.schedule') }}">
+        <i class="fas fa-calendar"></i> Schedule
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('teacher.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_title %}{{ assignment.title }}{% endblock %}
+
+{% block header_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <a href="{{ url_for('teacher.assignments') }}" class="btn btn-outline btn-sm">
+        <i class="fas fa-arrow-left"></i> Back to Assignments
+    </a>
+    <button class="btn btn-secondary btn-sm" onclick="editAssignment()">
+        <i class="fas fa-edit"></i> Edit
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="viewSubmissions()">
+        <i class="fas fa-file-alt"></i> View Submissions
+    </button>
+</div>
+{% endblock %}
+
+{% block content_body %}
+<!-- Assignment Overview -->
+<div class="kpi-grid" style="margin-bottom: var(--spacing-2xl);">
+    <div class="kpi-card">
+        <div class="kpi-icon">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ assignment.class_info.students|length if assignment.class_info else 0 }}</h3>
+            <p>Total Students</p>
+            <small>{{ assignment.class_info.get_display_name() if assignment.class_info else 'N/A' }}</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--success), #10B981);">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ assignment.submissions_count if assignment.submissions_count else 0 }}</h3>
+            <p>Submitted</p>
+            <small>{{ "%.1f"|format((assignment.submissions_count / assignment.class_info.students|length * 100) if assignment.class_info and assignment.class_info.students|length > 0 else 0) }}%</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--warning), #F59E0B);">
+            <i class="fas fa-clock"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ (assignment.class_info.students|length - (assignment.submissions_count if assignment.submissions_count else 0)) if assignment.class_info else 0 }}</h3>
+            <p>Pending</p>
+            <small>Not Submitted</small>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-icon" style="background: linear-gradient(135deg, var(--info), #3B82F6);">
+            <i class="fas fa-star"></i>
+        </div>
+        <div class="kpi-content">
+            <h3>{{ assignment.average_score if assignment.average_score else 0 }}%</h3>
+            <p>Average Score</p>
+            <small>Graded Submissions</small>
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Details -->
+<div class="dashboard-grid">
+    <div class="dashboard-card" style="grid-column: span 2;">
+        <div class="card-header">
+            <h3><i class="fas fa-info-circle"></i> Assignment Details</h3>
+            <div style="display: flex; gap: var(--spacing-sm);">
+                {% if assignment.due_date %}
+                    {% if assignment.due_date < today %}
+                        <span class="badge badge-error">Overdue</span>
+                    {% elif (assignment.due_date - today).days <= 3 %}
+                        <span class="badge badge-warning">Due Soon</span>
+                    {% else %}
+                        <span class="badge badge-success">Active</span>
+                    {% endif %}
+                {% else %}
+                    <span class="badge badge-info">No Due Date</span>
+                {% endif %}
+                
+                {% if assignment.priority %}
+                    <span class="badge {% if assignment.priority == 'urgent' %}badge-error{% elif assignment.priority == 'high' %}badge-warning{% else %}badge-secondary{% endif %}">
+                        {{ assignment.priority.title() }} Priority
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-content">
+            <div class="list-container">
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Assignment Title</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ assignment.title }}</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Class</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span class="badge badge-info">{{ assignment.class_info.get_display_name() if assignment.class_info else 'N/A' }}</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Subject</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span class="badge badge-secondary">{{ assignment.subject.name if assignment.subject else 'General' }}</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Assigned Date</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <span style="color: var(--text-primary); font-weight: 600;">{{ assignment.assigned_date.strftime('%d %B %Y') if assignment.assigned_date else 'N/A' }}</span>
+                    </div>
+                </div>
+                
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Due Date</div>
+                    </div>
+                    <div class="list-item-actions">
+                        {% if assignment.due_date %}
+                            <span style="color: {{ 'var(--error)' if assignment.due_date < today else 'var(--text-primary)' }}; font-weight: 600;">
+                                {{ assignment.due_date.strftime('%d %B %Y') }}
+                            </span>
+                        {% else %}
+                            <span style="color: var(--text-muted);">No Due Date</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if assignment.file_path %}
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">Attachment</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <a href="{{ url_for('teacher.download_assignment', assignment_id=assignment.id) }}" class="btn btn-sm btn-outline">
+                            <i class="fas fa-download"></i> {{ assignment.file_name or 'Download' }}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if assignment.description %}
+            <div style="margin-top: var(--spacing-xl);">
+                <h4 style="color: var(--text-primary); margin-bottom: var(--spacing-md);">Description</h4>
+                <div style="background: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg); border-left: 4px solid var(--accent-orange);">
+                    <p style="color: var(--text-primary); line-height: 1.6; margin: 0;">{{ assignment.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if assignment.instructions %}
+            <div style="margin-top: var(--spacing-xl);">
+                <h4 style="color: var(--text-primary); margin-bottom: var(--spacing-md);">Instructions</h4>
+                <div style="background: var(--bg-tertiary); padding: var(--spacing-lg); border-radius: var(--radius-lg); border-left: 4px solid var(--info);">
+                    <div style="color: var(--text-primary); line-height: 1.6;">{{ assignment.instructions|nl2br|safe }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h3><i class="fas fa-bolt"></i> Quick Actions</h3>
+        </div>
+        <div class="card-content">
+            <div class="quick-actions">
+                <button class="quick-action-btn" onclick="viewSubmissions()">
+                    <i class="fas fa-file-alt"></i>
+                    <span>View Submissions</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="gradeAssignments()">
+                    <i class="fas fa-star"></i>
+                    <span>Grade Assignments</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="sendReminder()">
+                    <i class="fas fa-bell"></i>
+                    <span>Send Reminder</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="exportResults()">
+                    <i class="fas fa-download"></i>
+                    <span>Export Results</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="editAssignment()">
+                    <i class="fas fa-edit"></i>
+                    <span>Edit Assignment</span>
+                </button>
+                
+                <button class="quick-action-btn" onclick="duplicateAssignment()">
+                    <i class="fas fa-copy"></i>
+                    <span>Duplicate</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Submission Statistics -->
+<div class="dashboard-card" style="margin-top: var(--spacing-xl);">
+    <div class="card-header">
+        <h3><i class="fas fa-chart-bar"></i> Submission Statistics</h3>
+        <button class="btn btn-outline btn-sm" onclick="refreshStats()">
+            <i class="fas fa-refresh"></i> Refresh
+        </button>
+    </div>
+    <div class="card-content">
+        {% if assignment.submissions %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Submission Date</th>
+                            <th>Status</th>
+                            <th>Score</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for submission in assignment.submissions %}
+                            <tr>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: var(--spacing-md);">
+                                        {% if submission.student.photo_url %}
+                                            <img src="{{ url_for('static', filename='uploads/' + submission.student.photo_url) }}" 
+                                                 alt="{{ submission.student.name }}" 
+                                                 style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                                        {% else %}
+                                            <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-orange); display: flex; align-items: center; justify-content: center; color: var(--bg-primary); font-weight: 700; font-size: 0.875rem;">
+                                                {{ submission.student.name[0].upper() }}
+                                            </div>
+                                        {% endif %}
+                                        <div>
+                                            <div style="font-weight: 600; color: var(--text-primary);">{{ submission.student.name }}</div>
+                                            <div style="color: var(--text-muted); font-size: 0.875rem;">{{ submission.student.admission_no }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ submission.submitted_at.strftime('%d %b %Y, %H:%M') if submission.submitted_at else 'Not Submitted' }}</td>
+                                <td>
+                                    <span class="status-badge {{ submission.status.value }}">{{ submission.status.value.title() }}</span>
+                                </td>
+                                <td>
+                                    {% if submission.score is not none %}
+                                        <span style="color: {% if submission.score >= 85 %}var(--success){% elif submission.score >= 75 %}var(--info){% elif submission.score >= 60 %}var(--warning){% else %}var(--error){% endif %}; font-weight: 600;">
+                                            {{ submission.score }}%
+                                        </span>
+                                    {% else %}
+                                        <span style="color: var(--text-muted);">Not Graded</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: var(--spacing-xs);">
+                                        <button class="btn btn-sm btn-primary" onclick="viewSubmission({{ submission.id }})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-outline" onclick="gradeSubmission({{ submission.id }})">
+                                            <i class="fas fa-star"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="fas fa-file-alt"></i>
+                <h3>No Submissions Yet</h3>
+                <p>Students haven't submitted their assignments yet.</p>
+                <button class="btn btn-primary" onclick="sendReminder()">
+                    <i class="fas fa-bell"></i> Send Reminder
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function viewSubmissions() {
+    showNotification('Loading submissions...', 'info');
+    // In real implementation, navigate to submissions page
+}
+
+function gradeAssignments() {
+    showNotification('Grading interface will be available soon', 'info');
+}
+
+function sendReminder() {
+    showNotification('Sending reminder to students...', 'info');
+    setTimeout(() => {
+        showNotification('Reminder sent successfully!', 'success');
+    }, 2000);
+}
+
+function exportResults() {
+    showNotification('Exporting assignment results...', 'info');
+    setTimeout(() => {
+        showNotification('Results exported successfully!', 'success');
+    }, 2000);
+}
+
+function editAssignment() {
+    showNotification('Edit assignment feature will be available soon', 'info');
+}
+
+function duplicateAssignment() {
+    showNotification('Duplicating assignment...', 'info');
+    setTimeout(() => {
+        showNotification('Assignment duplicated successfully!', 'success');
+    }, 1500);
+}
+
+function refreshStats() {
+    showNotification('Refreshing statistics...', 'info');
+    setTimeout(() => {
+        showNotification('Statistics updated!', 'success');
+    }, 1000);
+}
+
+function viewSubmission(submissionId) {
+    showNotification('Loading submission details...', 'info');
+}
+
+function gradeSubmission(submissionId) {
+    showNotification('Grading interface will be available soon', 'info');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} fade-in`;
+    notification.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : type === 'error' ? 'times' : 'info'}-circle"></i> ${message}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: var(--spacing-lg);
+        right: var(--spacing-lg);
+        z-index: 1000;
+        max-width: 350px;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,1394 @@
+{% extends "content_base.html" %}
+
+{% block title %}Reports - School Admin{% endblock %}
+
+{% block page_title %}Reports & Analytics{% endblock %}
+
+{% block page_description %}View comprehensive reports and analytics for your school{% endblock %}
+
+{% block sidebar_menu %}
+<li>
+    <a href="{{ url_for('school_admin.dashboard') }}">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.students') }}">
+        <i class="fas fa-users"></i> Students
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.teachers') }}">
+        <i class="fas fa-chalkboard-teacher"></i> Teachers
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.classes') }}">
+        <i class="fas fa-school"></i> Classes
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.fees') }}">
+        <i class="fas fa-money-bill-wave"></i> Fees
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('school_admin.attendance') }}">
+        <i class="fas fa-calendar-check"></i> Attendance
+    </a>
+</li>
+<li class="active">
+    <a href="{{ url_for('school_admin.reports') }}">
+        <i class="fas fa-chart-line"></i> Reports
+    </a>
+</li>
+<li>
+    <a href="{{ url_for('auth.logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</li>
+{% endblock %}
+
+{% block page_actions %}
+{{ super() }}
+<div style="display: flex; gap: var(--spacing-sm);">
+    <button class="btn btn-outline btn-sm" onclick="showExportModal()">
+        <i class="fas fa-download"></i> Export
+    </button>
+    <button class="btn btn-primary btn-sm" onclick="showReportModal()">
+        <i class="fas fa-chart-bar"></i> Generate Custom Report
+    </button>
+    <button class="btn btn-success btn-sm" onclick="refreshReports()">
+        <i class="fas fa-sync-alt"></i> Refresh
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="tactical-container">
+    <!-- Report Filters -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-xl);">
+        <h3 style="margin-bottom: var(--spacing-lg);">
+            <i class="fas fa-filter"></i> Report Filters
+        </h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md);">
+            <div>
+                <label class="form-label">Date Range</label>
+                <select id="dateRange" class="form-input" onchange="updateDateRange()">
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month" selected>This Month</option>
+                    <option value="quarter">This Quarter</option>
+                    <option value="year">This Year</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+            
+            <div id="customDateRange" style="display: none;">
+                <label class="form-label">From Date</label>
+                <input type="date" id="fromDate" class="form-input">
+            </div>
+            
+            <div id="customDateRangeTo" style="display: none;">
+                <label class="form-label">To Date</label>
+                <input type="date" id="toDate" class="form-input">
+            </div>
+            
+            <div>
+                <label class="form-label">Class Filter</label>
+                <select id="classFilter" class="form-input">
+                    <option value="">All Classes</option>
+                    {% for class in classes %}
+                    <option value="{{ class.id }}">{{ class.class_name }} {{ class.section or '' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="form-label">Report Type</label>
+                <select id="reportType" class="form-input">
+                    <option value="summary">Summary Report</option>
+                    <option value="detailed">Detailed Report</option>
+                    <option value="comparative">Comparative Report</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; align-items: end;">
+                <button class="btn btn-primary" onclick="applyFilters()">
+                    <i class="fas fa-search"></i> Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Statistics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <div class="tactical-card text-center stat-card" data-stat="students">
+            <div style="color: var(--accent-blue); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-blue);">{{ stats.total_students }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Students</p>
+            <div class="stat-change positive">
+                <i class="fas fa-arrow-up"></i> +{{ stats.student_growth }}% this month
+            </div>
+        </div>
+        
+        <div class="tactical-card text-center stat-card" data-stat="teachers">
+            <div style="color: var(--accent-green); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-chalkboard-teacher"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-green);">{{ stats.total_teachers }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Teachers</p>
+            <div class="stat-change neutral">
+                <i class="fas fa-check-circle"></i> {{ stats.active_teachers }} active
+            </div>
+        </div>
+        
+        <div class="tactical-card text-center stat-card" data-stat="classes">
+            <div style="color: var(--accent-orange); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-school"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-orange);">{{ stats.total_classes }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Classes</p>
+            <div class="stat-change positive">
+                <i class="fas fa-graduation-cap"></i> {{ stats.avg_class_size }} avg size
+            </div>
+        </div>
+        
+        <div class="tactical-card text-center stat-card" data-stat="revenue">
+            <div style="color: var(--accent-purple); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-rupee-sign"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-purple);">₹{{ "{:,.0f}".format(stats.total_revenue) }}</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Total Revenue</p>
+            <div class="stat-change {{ 'positive' if stats.revenue_growth >= 0 else 'negative' }}">
+                <i class="fas fa-{{ 'arrow-up' if stats.revenue_growth >= 0 else 'arrow-down' }}"></i> 
+                {{ stats.revenue_growth|abs }}% vs last month
+            </div>
+        </div>
+        
+        <div class="tactical-card text-center stat-card" data-stat="attendance">
+            <div style="color: var(--accent-teal); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-calendar-check"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-teal);">{{ "%.1f"|format(stats.attendance_rate) }}%</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Attendance Rate</p>
+            <div class="stat-change {{ 'positive' if stats.attendance_rate >= 85 else 'negative' }}">
+                <i class="fas fa-{{ 'thumbs-up' if stats.attendance_rate >= 85 else 'exclamation-triangle' }}"></i> 
+                {{ 'Excellent' if stats.attendance_rate >= 90 else 'Good' if stats.attendance_rate >= 85 else 'Needs Attention' }}
+            </div>
+        </div>
+        
+        <div class="tactical-card text-center stat-card" data-stat="fees">
+            <div style="color: var(--accent-red); font-size: 2.5rem; margin-bottom: var(--spacing-sm);">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <h3 style="margin: 0; font-size: 2rem; color: var(--accent-red);">{{ "%.1f"|format(stats.collection_rate) }}%</h3>
+            <p style="margin: var(--spacing-xs) 0 0 0; color: var(--text-muted);">Fee Collection</p>
+            <div class="stat-change {{ 'positive' if stats.collection_rate >= 90 else 'negative' }}">
+                <i class="fas fa-coins"></i> ₹{{ "{:,.0f}".format(stats.pending_fees) }} pending
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Overview -->
+    <div class="tactical-card" style="margin-bottom: var(--spacing-xl);">
+        <h3 style="margin-bottom: var(--spacing-lg);">
+            <i class="fas fa-calendar-check"></i> Attendance Overview (Last 30 Days)
+        </h3>
+        
+        <div style="display: flex; align-items: center; gap: var(--spacing-lg);">
+            <div style="flex: 1;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: var(--spacing-xs);">
+                    <span>Overall Attendance Rate</span>
+                    <span><strong>{{ "%.1f"|format(stats.attendance_rate) }}%</strong></span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" data-width="{{ stats.attendance_rate }}"></div>
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <div class="attendance-rate-display" data-rate="{{ stats.attendance_rate }}">
+                    {{ "%.0f"|format(stats.attendance_rate) }}%
+                </div>
+                <small class="text-muted">Attendance Rate</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Report Generation -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--spacing-lg); margin-bottom: var(--spacing-xl);">
+        <!-- Student Reports -->
+        <div class="tactical-card report-category">
+            <h4 style="margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-users" style="color: var(--accent-blue);"></i> Student Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm report-btn" data-category="student" data-type="enrollment" onclick="generateReport('student', 'enrollment')">
+                    <i class="fas fa-chart-line"></i> Enrollment Trends
+                    <span class="report-desc">Student admission patterns and growth</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="student" data-type="performance" onclick="generateReport('student', 'performance')">
+                    <i class="fas fa-trophy"></i> Performance Analysis
+                    <span class="report-desc">Academic performance metrics</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="student" data-type="attendance" onclick="generateReport('student', 'attendance')">
+                    <i class="fas fa-calendar-check"></i> Attendance Summary
+                    <span class="report-desc">Student attendance patterns</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="student" data-type="demographics" onclick="generateReport('student', 'demographics')">
+                    <i class="fas fa-chart-pie"></i> Demographics
+                    <span class="report-desc">Age, gender, location distribution</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Financial Reports -->
+        <div class="tactical-card report-category">
+            <h4 style="margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-money-bill-wave" style="color: var(--accent-green);"></i> Financial Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm report-btn" data-category="financial" data-type="collection" onclick="generateReport('financial', 'collection')">
+                    <i class="fas fa-coins"></i> Fee Collection
+                    <span class="report-desc">Payment tracking and analysis</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="financial" data-type="outstanding" onclick="generateReport('financial', 'outstanding')">
+                    <i class="fas fa-exclamation-triangle"></i> Outstanding Dues
+                    <span class="report-desc">Pending payments and defaulters</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="financial" data-type="revenue" onclick="generateReport('financial', 'revenue')">
+                    <i class="fas fa-chart-bar"></i> Revenue Analysis
+                    <span class="report-desc">Income trends and projections</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="financial" data-type="expenses" onclick="generateReport('financial', 'expenses')">
+                    <i class="fas fa-receipt"></i> Expense Tracking
+                    <span class="report-desc">Cost analysis and budgeting</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Academic Reports -->
+        <div class="tactical-card report-category">
+            <h4 style="margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-graduation-cap" style="color: var(--accent-orange);"></i> Academic Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm report-btn" data-category="academic" data-type="class_performance" onclick="generateReport('academic', 'class_performance')">
+                    <i class="fas fa-school"></i> Class Performance
+                    <span class="report-desc">Class-wise academic analysis</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="academic" data-type="subject_analysis" onclick="generateReport('academic', 'subject_analysis')">
+                    <i class="fas fa-book"></i> Subject Analysis
+                    <span class="report-desc">Subject-wise performance trends</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="academic" data-type="teacher_performance" onclick="generateReport('academic', 'teacher_performance')">
+                    <i class="fas fa-chalkboard-teacher"></i> Teacher Effectiveness
+                    <span class="report-desc">Teaching performance metrics</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="academic" data-type="curriculum" onclick="generateReport('academic', 'curriculum')">
+                    <i class="fas fa-tasks"></i> Curriculum Progress
+                    <span class="report-desc">Syllabus completion tracking</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Administrative Reports -->
+        <div class="tactical-card report-category">
+            <h4 style="margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm);">
+                <i class="fas fa-cogs" style="color: var(--accent-purple);"></i> Administrative Reports
+            </h4>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm report-btn" data-category="admin" data-type="staff" onclick="generateReport('admin', 'staff')">
+                    <i class="fas fa-users-cog"></i> Staff Management
+                    <span class="report-desc">Employee records and performance</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="admin" data-type="infrastructure" onclick="generateReport('admin', 'infrastructure')">
+                    <i class="fas fa-building"></i> Infrastructure
+                    <span class="report-desc">Facilities and resource utilization</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="admin" data-type="compliance" onclick="generateReport('admin', 'compliance')">
+                    <i class="fas fa-clipboard-check"></i> Compliance Status
+                    <span class="report-desc">Regulatory compliance tracking</span>
+                </button>
+                <button class="btn btn-outline btn-sm report-btn" data-category="admin" data-type="activity" onclick="generateReport('admin', 'activity')">
+                    <i class="fas fa-history"></i> System Activity
+                    <span class="report-desc">User activity and audit logs</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generated Reports Display -->
+    <div id="reportResults" style="display: none;" class="tactical-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+            <h3 id="reportTitle">
+                <i class="fas fa-chart-bar"></i> Report Results
+            </h3>
+            <div style="display: flex; gap: var(--spacing-sm);">
+                <button class="btn btn-outline btn-sm" onclick="exportReport('pdf')">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="exportReport('excel')">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="exportReport('csv')">
+                    <i class="fas fa-file-csv"></i> CSV
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="closeReport()">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+        
+        <div id="reportContent">
+            <!-- Report content will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    {% if recent_activities %}
+    <div class="tactical-card" style="margin-top: var(--spacing-xl);">
+        <h3 style="margin-bottom: var(--spacing-lg);">
+            <i class="fas fa-history"></i> Recent Activities
+        </h3>
+        
+        <div class="table-responsive">
+            <table class="tactical-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Activity</th>
+                        <th>User</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for activity in recent_activities %}
+                    <tr>
+                        <td>{{ activity.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ activity.activity_type }}</td>
+                        <td>{{ activity.user.name }}</td>
+                        <td>{{ activity.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Custom Report Generation Modal -->
+<div id="customReportModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <h3><i class="fas fa-chart-bar"></i> Generate Custom Report</h3>
+        
+        <div style="margin: var(--spacing-lg) 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                <div>
+                    <label class="form-label">Report Category</label>
+                    <select id="customCategory" class="form-input">
+                        <option value="student">Student Reports</option>
+                        <option value="financial">Financial Reports</option>
+                        <option value="academic">Academic Reports</option>
+                        <option value="admin">Administrative Reports</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="form-label">Report Type</label>
+                    <select id="customType" class="form-input">
+                        <option value="summary">Summary</option>
+                        <option value="detailed">Detailed</option>
+                        <option value="comparative">Comparative</option>
+                        <option value="trend">Trend Analysis</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md); margin-bottom: var(--spacing-md);">
+                <div>
+                    <label class="form-label">From Date</label>
+                    <input type="date" id="customFromDate" class="form-input">
+                </div>
+                
+                <div>
+                    <label class="form-label">To Date</label>
+                    <input type="date" id="customToDate" class="form-input">
+                </div>
+            </div>
+            
+            <div style="margin-bottom: var(--spacing-md);">
+                <label class="form-label">Additional Filters</label>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--spacing-sm);">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <input type="checkbox" id="includeCharts"> Include Charts
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <input type="checkbox" id="includeComparisons"> Include Comparisons
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <input type="checkbox" id="includeRecommendations"> Include Recommendations
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: var(--spacing-sm); justify-content: end;">
+            <button class="btn btn-outline" onclick="closeModal('customReportModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="generateCustomReport()">
+                <i class="fas fa-chart-bar"></i> Generate Report
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options Modal -->
+<div id="exportModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <h3><i class="fas fa-download"></i> Export Reports</h3>
+        
+        <div style="margin: var(--spacing-lg) 0;">
+            <div style="margin-bottom: var(--spacing-md);">
+                <label class="form-label">Export Format</label>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <input type="radio" name="exportFormat" value="pdf" checked>
+                        <i class="fas fa-file-pdf" style="color: #dc3545;"></i> PDF Document
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <input type="radio" name="exportFormat" value="excel">
+                        <i class="fas fa-file-excel" style="color: #28a745;"></i> Excel Spreadsheet
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <input type="radio" name="exportFormat" value="csv">
+                        <i class="fas fa-file-csv" style="color: #17a2b8;"></i> CSV File
+                    </label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: var(--spacing-md);">
+                <label class="form-label">Include</label>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-sm);">
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <input type="checkbox" checked> Summary Statistics
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <input type="checkbox" checked> Charts and Graphs
+                    </label>
+                    <label style="display: flex; align-items: center; gap: var(--spacing-xs);">
+                        <input type="checkbox"> Raw Data Tables
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: var(--spacing-sm); justify-content: end;">
+            <button class="btn btn-outline" onclick="closeModal('exportModal')">Cancel</button>
+            <button class="btn btn-success" onclick="performExport()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables for report management
+let currentReportData = null;
+let currentFilters = {
+    dateRange: 'month',
+    classFilter: '',
+    reportType: 'summary'
+};
+
+// Report generation functions
+function generateReport(category, type) {
+    showLoadingState();
+    
+    const filters = getCurrentFilters();
+    const reportBtn = document.querySelector(`[data-category="${category}"][data-type="${type}"]`);
+    
+    // Add loading state to button
+    if (reportBtn) {
+        reportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        reportBtn.disabled = true;
+    }
+    
+    // Make API call to generate report
+    fetch(`{{ url_for('school_admin.generate_report') }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            category: category,
+            type: type,
+            filters: filters
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayReport(data.report, category, type);
+        } else {
+            showError('Failed to generate report: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error generating report:', error);
+        showError('An error occurred while generating the report.');
+    })
+    .finally(() => {
+        hideLoadingState();
+        // Reset button state
+        if (reportBtn) {
+            const originalContent = getOriginalButtonContent(category, type);
+            reportBtn.innerHTML = originalContent;
+            reportBtn.disabled = false;
+        }
+    });
+}
+
+function displayReport(reportData, category, type) {
+    currentReportData = reportData;
+    
+    const reportResults = document.getElementById('reportResults');
+    const reportTitle = document.getElementById('reportTitle');
+    const reportContent = document.getElementById('reportContent');
+    
+    // Update title
+    reportTitle.innerHTML = `<i class="fas fa-chart-bar"></i> ${reportData.title}`;
+    
+    // Generate report content HTML
+    let contentHtml = '';
+    
+    // Add summary section
+    if (reportData.summary) {
+        contentHtml += `
+            <div class="report-section">
+                <h4><i class="fas fa-info-circle"></i> Summary</h4>
+                <div class="report-summary">
+                    ${reportData.summary}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add key metrics
+    if (reportData.metrics && reportData.metrics.length > 0) {
+        contentHtml += `
+            <div class="report-section">
+                <h4><i class="fas fa-tachometer-alt"></i> Key Metrics</h4>
+                <div class="metrics-grid">
+                    ${reportData.metrics.map(metric => `
+                        <div class="metric-card">
+                            <div class="metric-value">${metric.value}</div>
+                            <div class="metric-label">${metric.label}</div>
+                            ${metric.change ? `<div class="metric-change ${metric.change >= 0 ? 'positive' : 'negative'}">
+                                <i class="fas fa-${metric.change >= 0 ? 'arrow-up' : 'arrow-down'}"></i>
+                                ${Math.abs(metric.change)}%
+                            </div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add charts
+    if (reportData.charts && reportData.charts.length > 0) {
+        contentHtml += `
+            <div class="report-section">
+                <h4><i class="fas fa-chart-line"></i> Visual Analysis</h4>
+                <div class="charts-container">
+                    ${reportData.charts.map((chart, index) => `
+                        <div class="chart-wrapper">
+                            <h5>${chart.title}</h5>
+                            <canvas id="reportChart${index}" class="report-chart"></canvas>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add data table
+    if (reportData.table && reportData.table.headers && reportData.table.rows) {
+        contentHtml += `
+            <div class="report-section">
+                <h4><i class="fas fa-table"></i> Detailed Data</h4>
+                <div class="table-responsive">
+                    <table class="tactical-table">
+                        <thead>
+                            <tr>
+                                ${reportData.table.headers.map(header => `<th>${header}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${reportData.table.rows.map(row => `
+                                <tr>
+                                    ${row.map(cell => `<td>${cell}</td>`).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Add recommendations
+    if (reportData.recommendations && reportData.recommendations.length > 0) {
+        contentHtml += `
+            <div class="report-section">
+                <h4><i class="fas fa-lightbulb"></i> Recommendations</h4>
+                <div class="recommendations-list">
+                    ${reportData.recommendations.map(rec => `
+                        <div class="recommendation-item">
+                            <div class="recommendation-priority ${rec.priority}">
+                                <i class="fas fa-${rec.priority === 'high' ? 'exclamation-triangle' : rec.priority === 'medium' ? 'info-circle' : 'check-circle'}"></i>
+                                ${rec.priority.toUpperCase()}
+                            </div>
+                            <div class="recommendation-content">
+                                <strong>${rec.title}</strong>
+                                <p>${rec.description}</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    reportContent.innerHTML = contentHtml;
+    reportResults.style.display = 'block';
+    
+    // Initialize charts if any
+    if (reportData.charts && reportData.charts.length > 0) {
+        setTimeout(() => {
+            initializeReportCharts(reportData.charts);
+        }, 100);
+    }
+    
+    // Scroll to report results
+    reportResults.scrollIntoView({ behavior: 'smooth' });
+}
+
+function initializeReportCharts(charts) {
+    charts.forEach((chartData, index) => {
+        const ctx = document.getElementById(`reportChart${index}`);
+        if (ctx) {
+            new Chart(ctx.getContext('2d'), {
+                type: chartData.type || 'bar',
+                data: chartData.data,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff'
+                        }
+                    },
+                    scales: chartData.type !== 'pie' && chartData.type !== 'doughnut' ? {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    } : {}
+                }
+            });
+        }
+    });
+}
+
+function exportReport(format) {
+    if (!currentReportData) {
+        showError('No report data available to export.');
+        return;
+    }
+    
+    showLoadingState();
+    
+    fetch(`{{ url_for('school_admin.export_report') }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            reportData: currentReportData,
+            format: format,
+            filters: currentFilters
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.blob();
+        }
+        throw new Error('Export failed');
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `report_${new Date().toISOString().split('T')[0]}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showSuccess(`Report exported successfully as ${format.toUpperCase()}`);
+    })
+    .catch(error => {
+        console.error('Export error:', error);
+        showError('Failed to export report.');
+    })
+    .finally(() => {
+        hideLoadingState();
+    });
+}
+
+// Filter and utility functions
+function updateDateRange() {
+    const dateRange = document.getElementById('dateRange').value;
+    const customRange = document.getElementById('customDateRange');
+    const customRangeTo = document.getElementById('customDateRangeTo');
+    
+    if (dateRange === 'custom') {
+        customRange.style.display = 'block';
+        customRangeTo.style.display = 'block';
+    } else {
+        customRange.style.display = 'none';
+        customRangeTo.style.display = 'none';
+    }
+}
+
+function applyFilters() {
+    currentFilters = getCurrentFilters();
+    showSuccess('Filters applied successfully. Generate a new report to see updated results.');
+}
+
+function getCurrentFilters() {
+    return {
+        dateRange: document.getElementById('dateRange').value,
+        fromDate: document.getElementById('fromDate')?.value,
+        toDate: document.getElementById('toDate')?.value,
+        classFilter: document.getElementById('classFilter').value,
+        reportType: document.getElementById('reportType').value
+    };
+}
+
+function refreshReports() {
+    showLoadingState();
+    
+    // Refresh page data
+    fetch(`{{ url_for('school_admin.reports') }}?refresh=1`)
+        .then(response => response.text())
+        .then(html => {
+            // Parse and update statistics
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Update stat cards
+            const statCards = document.querySelectorAll('.stat-card');
+            const newStatCards = doc.querySelectorAll('.stat-card');
+            
+            statCards.forEach((card, index) => {
+                if (newStatCards[index]) {
+                    card.innerHTML = newStatCards[index].innerHTML;
+                }
+            });
+            
+            showSuccess('Reports refreshed successfully.');
+        })
+        .catch(error => {
+            console.error('Refresh error:', error);
+            showError('Failed to refresh reports.');
+        })
+        .finally(() => {
+            hideLoadingState();
+        });
+}
+
+// Modal functions
+function showReportModal() {
+    document.getElementById('customReportModal').style.display = 'flex';
+}
+
+function showExportModal() {
+    document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+}
+
+function closeReport() {
+    document.getElementById('reportResults').style.display = 'none';
+    currentReportData = null;
+}
+
+function generateCustomReport() {
+    const category = document.getElementById('customCategory').value;
+    const type = document.getElementById('customType').value;
+    
+    closeModal('customReportModal');
+    generateReport(category, type);
+}
+
+function performExport() {
+    const format = document.querySelector('input[name="exportFormat"]:checked').value;
+    closeModal('exportModal');
+    exportReport(format);
+}
+
+// Utility functions
+function showLoadingState() {
+    // Add loading overlay or spinner
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'loadingOverlay';
+    loadingOverlay.innerHTML = `
+        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+            <div style="background: white; padding: 2rem; border-radius: 8px; text-align: center;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                <div>Generating report...</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loadingOverlay);
+}
+
+function hideLoadingState() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.remove();
+    }
+}
+
+function showSuccess(message) {
+    showNotification(message, 'success');
+}
+
+function showError(message) {
+    showNotification(message, 'error');
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+        ${message}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#28a745' : '#dc3545'};
+        color: white;
+        padding: 1rem;
+        border-radius: 4px;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+function getOriginalButtonContent(category, type) {
+    const buttonMap = {
+        'student': {
+            'enrollment': '<i class="fas fa-chart-line"></i> Enrollment Trends<span class="report-desc">Student admission patterns and growth</span>',
+            'performance': '<i class="fas fa-trophy"></i> Performance Analysis<span class="report-desc">Academic performance metrics</span>',
+            'attendance': '<i class="fas fa-calendar-check"></i> Attendance Summary<span class="report-desc">Student attendance patterns</span>',
+            'demographics': '<i class="fas fa-chart-pie"></i> Demographics<span class="report-desc">Age, gender, location distribution</span>'
+        },
+        'financial': {
+            'collection': '<i class="fas fa-coins"></i> Fee Collection<span class="report-desc">Payment tracking and analysis</span>',
+            'outstanding': '<i class="fas fa-exclamation-triangle"></i> Outstanding Dues<span class="report-desc">Pending payments and defaulters</span>',
+            'revenue': '<i class="fas fa-chart-bar"></i> Revenue Analysis<span class="report-desc">Income trends and projections</span>',
+            'expenses': '<i class="fas fa-receipt"></i> Expense Tracking<span class="report-desc">Cost analysis and budgeting</span>'
+        },
+        'academic': {
+            'class_performance': '<i class="fas fa-school"></i> Class Performance<span class="report-desc">Class-wise academic analysis</span>',
+            'subject_analysis': '<i class="fas fa-book"></i> Subject Analysis<span class="report-desc">Subject-wise performance trends</span>',
+            'teacher_performance': '<i class="fas fa-chalkboard-teacher"></i> Teacher Effectiveness<span class="report-desc">Teaching performance metrics</span>',
+            'curriculum': '<i class="fas fa-tasks"></i> Curriculum Progress<span class="report-desc">Syllabus completion tracking</span>'
+        },
+        'admin': {
+            'staff': '<i class="fas fa-users-cog"></i> Staff Management<span class="report-desc">Employee records and performance</span>',
+            'infrastructure': '<i class="fas fa-building"></i> Infrastructure<span class="report-desc">Facilities and resource utilization</span>',
+            'compliance': '<i class="fas fa-clipboard-check"></i> Compliance Status<span class="report-desc">Regulatory compliance tracking</span>',
+            'activity': '<i class="fas fa-history"></i> System Activity<span class="report-desc">User activity and audit logs</span>'
+        }
+    };
+    
+    return buttonMap[category]?.[type] || 'Generate Report';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default dates
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const fromDateInput = document.getElementById('fromDate');
+    const toDateInput = document.getElementById('toDate');
+    const customFromDate = document.getElementById('customFromDate');
+    const customToDate = document.getElementById('customToDate');
+    
+    if (fromDateInput) fromDateInput.value = firstDay.toISOString().split('T')[0];
+    if (toDateInput) toDateInput.value = today.toISOString().split('T')[0];
+    if (customFromDate) customFromDate.value = firstDay.toISOString().split('T')[0];
+    if (customToDate) customToDate.value = today.toISOString().split('T')[0];
+});
+</script>
+
+<style>
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--color-surface-variant);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    transition: width 0.3s ease;
+}
+
+.attendance-rate-display {
+    font-size: 2rem;
+}
+
+.attendance-rate-high {
+    color: var(--color-success);
+}
+
+.attendance-rate-medium {
+    color: var(--color-warning);
+}
+
+.attendance-rate-low {
+    color: var(--color-error);
+}
+
+/* Enhanced Report Styles */
+.stat-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-blue));
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.stat-change {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    margin-top: var(--spacing-xs);
+    display: inline-block;
+}
+
+.stat-change.positive {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.stat-change.negative {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.stat-change.neutral {
+    background: rgba(107, 114, 128, 0.1);
+    color: #6b7280;
+}
+
+.report-category {
+    transition: all 0.3s ease;
+}
+
+.report-category:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(255, 165, 0, 0.15);
+}
+
+.report-btn {
+    position: relative;
+    text-align: left;
+    padding: var(--spacing-md);
+    transition: all 0.3s ease;
+    border-left: 3px solid transparent;
+}
+
+.report-btn:hover {
+    border-left-color: var(--accent-orange);
+    background: rgba(255, 165, 0, 0.05);
+    transform: translateX(4px);
+}
+
+.report-btn .report-desc {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-weight: normal;
+}
+
+.report-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Report Results Styles */
+.report-section {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.report-section:last-child {
+    border-bottom: none;
+}
+
+.report-section h4 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.report-section h4 i {
+    color: var(--accent-orange);
+}
+
+.report-summary {
+    background: rgba(255, 165, 0, 0.05);
+    border-left: 4px solid var(--accent-orange);
+    padding: var(--spacing-lg);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.metric-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent-orange);
+    margin-bottom: var(--spacing-sm);
+}
+
+.metric-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.metric-change {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: var(--spacing-xl);
+}
+
+.chart-wrapper {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+}
+
+.chart-wrapper h5 {
+    margin-bottom: var(--spacing-lg);
+    color: var(--text-primary);
+    text-align: center;
+}
+
+.report-chart {
+    max-height: 300px;
+}
+
+.recommendations-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.recommendation-item {
+    display: flex;
+    gap: var(--spacing-md);
+    padding: var(--spacing-lg);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: all 0.3s ease;
+}
+
+.recommendation-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.recommendation-priority {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+    height: fit-content;
+}
+
+.recommendation-priority.high {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.recommendation-priority.medium {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.recommendation-priority.low {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+}
+
+.recommendation-content {
+    flex: 1;
+}
+
+.recommendation-content strong {
+    color: var(--text-primary);
+    display: block;
+    margin-bottom: var(--spacing-xs);
+}
+
+.recommendation-content p {
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Modal Enhancements */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xl);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.modal-content h3 i {
+    color: var(--accent-orange);
+}
+
+/* Form Enhancements */
+.form-label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.form-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--accent-orange);
+    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+/* Animation Classes */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.report-section {
+    animation: slideInUp 0.5s ease-out;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .recommendation-item {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .modal-content {
+        margin: var(--spacing-md);
+        padding: var(--spacing-lg);
+    }
+}
+
+/* Print Styles */
+@media print {
+    .btn, .modal, .page-actions {
+        display: none !important;
+    }
+    
+    .report-section {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+    
+    .chart-wrapper {
+        break-inside: avoid;
+    }
+}
+</style>
+
+<script>
+// Set attendance rate color and progress bar width
+document.addEventListener('DOMContentLoaded', function() {
+    const rateDisplay = document.querySelector('.attendance-rate-display');
+    if (rateDisplay) {
+        const rate = parseFloat(rateDisplay.dataset.rate);
+        if (rate >= 90) {
+            rateDisplay.classList.add('attendance-rate-high');
+        } else if (rate >= 75) {
+            rateDisplay.classList.add('attendance-rate-medium');
+        } else {
+            rateDisplay.classList.add('attendance-rate-low');
+        }
+    }
+    
+    // Set progress bar width
+    const progressFill = document.querySelector('.progress-fill');
+    if (progressFill) {
+        const width = progressFill.dataset.width;
+        progressFill.style.width = width + '%';
+    }
+});
+</script>
+{% endblock %}
