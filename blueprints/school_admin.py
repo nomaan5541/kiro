@@ -1816,6 +1816,143 @@ def promote_class(class_id):
                          school=school)
 
 
+@school_admin_bp.route('/subjects')
+@role_required('school_admin')
+def subjects():
+    """List all subjects"""
+    user = User.query.get(session['user_id'])
+    school = School.query.get(user.school_id)
+
+    # Get search and filter parameters
+    search = request.args.get('search', '')
+    page = request.args.get('page', 1, type=int)
+
+    # Build query
+    from models.classes import Subject
+
+    query = Subject.query.filter_by(school_id=school.id)
+
+    # Apply filters
+    if search:
+        query = query.filter(
+            db.or_(
+                Subject.name.contains(search),
+                Subject.code.contains(search)
+            )
+        )
+
+    # Paginate results
+    subjects = query.order_by(Subject.name).paginate(
+        page=page, per_page=25, error_out=False
+    )
+
+    return render_template('school_admin/subjects.html',
+                         subjects=subjects,
+                         search=search,
+                         user=user,
+                         school=school)
+
+
+@school_admin_bp.route('/subjects/add', methods=['GET', 'POST'])
+@role_required('school_admin')
+def add_subject():
+    """Add new subject"""
+    user = User.query.get(session['user_id'])
+    school = user.school
+
+    if request.method == 'POST':
+        try:
+            from models.classes import Subject, Class
+
+            subject = Subject(
+                school_id=school.id,
+                name=request.form.get('name'),
+                code=request.form.get('code'),
+                class_id=request.form.get('class_id'),
+                description=request.form.get('description')
+            )
+
+            db.session.add(subject)
+            db.session.commit()
+
+            flash('Subject added successfully!', 'success')
+            return redirect(url_for('school_admin.subjects'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error adding subject: {str(e)}', 'error')
+
+    # Get classes for dropdown
+    from models.classes import Class
+    classes = Class.query.filter_by(school_id=school.id).all()
+
+    return render_template('school_admin/add_subject.html',
+                         classes=classes,
+                         user=user,
+                         school=school)
+
+
+@school_admin_bp.route('/subjects/<int:subject_id>/edit', methods=['GET', 'POST'])
+@role_required('school_admin')
+def edit_subject(subject_id):
+    """Edit subject information"""
+    user = User.query.get(session['user_id'])
+    school = user.school
+
+    from models.classes import Subject, Class
+
+    subject = Subject.query.filter_by(id=subject_id, school_id=school.id).first_or_404()
+
+    if request.method == 'POST':
+        try:
+            subject.name = request.form.get('name')
+            subject.code = request.form.get('code')
+            subject.class_id = request.form.get('class_id')
+            subject.description = request.form.get('description')
+
+            db.session.commit()
+            flash('Subject updated successfully!', 'success')
+            return redirect(url_for('school_admin.subjects'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating subject: {str(e)}', 'error')
+
+    # Get classes for dropdown
+    classes = Class.query.filter_by(school_id=school.id).all()
+
+    return render_template('school_admin/edit_subject.html',
+                         subject=subject,
+                         classes=classes,
+                         user=user,
+                         school=school)
+
+
+@school_admin_bp.route('/subjects/<int:subject_id>/delete', methods=['POST'])
+@role_required('school_admin')
+def delete_subject(subject_id):
+    """Delete a subject"""
+    user = User.query.get(session['user_id'])
+    school = School.query.get(user.school_id)
+
+    from models.classes import Subject
+
+    try:
+        subject = Subject.query.filter_by(id=subject_id, school_id=school.id).first_or_404()
+        subject_name = subject.name
+
+        db.session.delete(subject)
+        db.session.commit()
+
+        flash(f'Subject {subject_name} deleted successfully!', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting subject: {str(e)}', 'error')
+
+    return redirect(url_for('school_admin.subjects'))
+
+
 @school_admin_bp.route('/reports')
 @role_required('school_admin')
 def reports():
