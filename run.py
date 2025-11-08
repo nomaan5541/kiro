@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
-"""
-Development server runner for School Management System
+"""Development server runner for the School Management System.
+
+This script serves as the entry point for running the Flask development server.
+It creates a Flask application instance using the application factory pattern
+and runs it with the appropriate configuration.
 """
 import os
 from app import create_app

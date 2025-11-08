@@ -1,13 +1,20 @@
-"""
-Configuration settings for School Management System
+"""Configuration settings for School Management System.
+
+This file contains the configuration settings for the Flask application.
+It uses a class-based approach to handle different environments such as
+development, testing, and production.
 """
 import os
 from datetime import timedelta
 
 
 class Config:
-    """Base configuration class"""
-    
+    """Base configuration class.
+
+    Contains default configuration settings that are common across all
+    environments. Specific environments can override these settings.
+    """
+
     # Basic Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
@@ -58,21 +65,32 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    """Development configuration"""
+    """Development configuration.
+
+    Enables debug mode and uses a separate database for development.
+    """
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.environ.get('DEV_DATABASE_URL') or \
         'sqlite:///school_management_dev.db'
 
 
 class TestingConfig(Config):
-    """Testing configuration"""
+    """Testing configuration.
+
+    Enables testing mode, uses an in-memory SQLite database, and disables CSRF
+    protection for easier testing.
+    """
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     WTF_CSRF_ENABLED = False
 
 
 class ProductionConfig(Config):
-    """Production configuration"""
+    """Production configuration.
+
+    Disables debug mode and sets security settings for a production
+    environment.
+    """
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     
