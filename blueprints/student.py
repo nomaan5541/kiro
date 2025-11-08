@@ -1,5 +1,8 @@
-"""
-Student Blueprint - Handles student/parent functionality
+"""Student Blueprint.
+
+This blueprint handles all the functionality for the student and parent-facing
+part of the application. It includes the student dashboard, profile,
+attendance, fees, assignments, and notifications.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from extensions import db
@@ -21,7 +24,14 @@ student_bp = Blueprint('student', __name__)
 @student_bp.route('/dashboard')
 @role_required('student')
 def dashboard():
-    """Student/Parent dashboard"""
+    """Renders the student's main dashboard.
+
+    Displays a summary of the student's attendance, fee status, recent
+    payments, assignments, and notifications.
+
+    Returns:
+        The rendered student dashboard template.
+    """
     user = User.query.get(session['user_id'])
     
     # Find student record - for demo, we'll use the first student
@@ -87,7 +97,11 @@ def dashboard():
 @student_bp.route('/profile')
 @role_required('student')
 def profile():
-    """Student profile page"""
+    """Renders the student's profile page.
+
+    Returns:
+        The rendered student profile template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -101,7 +115,14 @@ def profile():
 @student_bp.route('/attendance')
 @role_required('student')
 def attendance():
-    """Student attendance page"""
+    """Renders the student's attendance page.
+
+    Displays a monthly calendar view of the student's attendance, along
+    with monthly statistics.
+
+    Returns:
+        The rendered attendance template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -161,7 +182,14 @@ def attendance():
 @student_bp.route('/fees')
 @role_required('student')
 def fees():
-    """Student fees page"""
+    """Renders the student's fees page.
+
+    Displays the student's fee status, fee structure, and a complete
+    payment history.
+
+    Returns:
+        The rendered fees template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -203,7 +231,14 @@ def fees():
 @student_bp.route('/assignments')
 @role_required('student')
 def assignments():
-    """Student assignments page"""
+    """Renders the student's assignments page.
+
+    Displays a list of all assignments for the student's class, along with
+    their submission status.
+
+    Returns:
+        The rendered assignments template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first_or_404()
     
@@ -232,7 +267,14 @@ def assignments():
 @student_bp.route('/assignments/<int:assignment_id>')
 @role_required('student')
 def view_assignment(assignment_id):
-    """View assignment details"""
+    """Renders the detailed view for a single assignment.
+
+    Args:
+        assignment_id (int): The ID of the assignment to view.
+
+    Returns:
+        The rendered assignment view template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first_or_404()
     
@@ -259,7 +301,13 @@ def view_assignment(assignment_id):
 @student_bp.route('/assignments/submit', methods=['POST'])
 @role_required('student')
 def submit_assignment():
-    """Submit assignment"""
+    """API endpoint for submitting an assignment.
+
+    Handles the submission of assignment text and files.
+
+    Returns:
+        JSON: A JSON object with the result of the submission.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first_or_404()
     
@@ -295,7 +343,14 @@ def submit_assignment():
 @student_bp.route('/study_materials')
 @role_required('student')
 def study_materials():
-    """Student study materials page"""
+    """Renders the study materials page.
+
+    Displays a list of study materials for the student's class, as well as
+    any public materials.
+
+    Returns:
+        The rendered study materials template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first_or_404()
     
@@ -320,7 +375,16 @@ def study_materials():
 @student_bp.route('/download_file/<file_type>/<int:file_id>')
 @role_required('student')
 def download_file(file_type, file_id):
-    """Download assignment or study material file"""
+    """Handles the download of assignment and study material files.
+
+    Args:
+        file_type (str): The type of file to download ('assignment' or
+                         'study_material').
+        file_id (int): The ID of the file attachment.
+
+    Returns:
+        A file download response, or a redirect upon error.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first_or_404()
     
@@ -367,7 +431,13 @@ def download_file(file_type, file_id):
 @student_bp.route('/notifications')
 @role_required('student')
 def notifications():
-    """Student notifications page"""
+    """Renders the student's notifications page.
+
+    Displays a paginated list of all notifications sent to the student.
+
+    Returns:
+        The rendered notifications template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -392,7 +462,14 @@ def notifications():
 @student_bp.route('/reports')
 @role_required('student')
 def reports():
-    """Student reports page"""
+    """Renders the student's reports page.
+
+    Displays an attendance report with a monthly breakdown for the current
+    academic year.
+
+    Returns:
+        The rendered reports template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -444,7 +521,14 @@ def reports():
 @student_bp.route('/pay_fees')
 @role_required('student')
 def pay_fees():
-    """Online fee payment page"""
+    """Renders the online fee payment page.
+
+    Displays the student's pending fees and provides options for making an
+    online payment.
+
+    Returns:
+        The rendered "pay fees" template.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -490,7 +574,11 @@ def pay_fees():
 @student_bp.route('/api/create_payment_order', methods=['POST'])
 @role_required('student')
 def create_payment_order():
-    """Create payment order for online payment"""
+    """API endpoint to create a payment order for online fee payment.
+
+    Returns:
+        JSON: A JSON object with the payment order details.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     
@@ -541,7 +629,11 @@ def create_payment_order():
 @student_bp.route('/api/verify_payment', methods=['POST'])
 @role_required('student')
 def verify_payment():
-    """Verify and process payment"""
+    """API endpoint to verify and process an online payment.
+
+    Returns:
+        JSON: A JSON object with the result of the payment verification.
+    """
     user = User.query.get(session['user_id'])
     student = Student.query.filter_by(school_id=user.school_id).first()
     

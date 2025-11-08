@@ -1,5 +1,9 @@
-"""
-Super Admin Blueprint - Handles school registration and management
+"""Super Admin Blueprint.
+
+This blueprint contains all the routes and logic for the super administrator,
+who manages the entire system. This includes registering new schools,
+managing existing schools and subscriptions, and viewing system-wide
+statistics and reports.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from extensions import db, bcrypt
@@ -14,7 +18,15 @@ super_admin_bp = Blueprint('super_admin', __name__)
 @super_admin_bp.route('/dashboard')
 @role_required('super_admin')
 def dashboard():
-    """Super admin dashboard"""
+    """Renders the super admin dashboard.
+
+    Displays key performance indicators (KPIs) for the entire system,
+    such as the total number of schools, active and expired subscriptions,
+    and a list of recently registered schools.
+
+    Returns:
+        The rendered super admin dashboard template.
+    """
     user = User.query.get(session['user_id'])
     
     # Calculate KPIs
@@ -43,7 +55,15 @@ def dashboard():
 @super_admin_bp.route('/register-school', methods=['GET', 'POST'])
 @role_required('super_admin')
 def register_school():
-    """Register a new school"""
+    """Handles the registration of a new school.
+
+    Displays the registration form and processes the form submission,
+    creating a new school and an administrator account for that school.
+
+    Returns:
+        The rendered "register school" template, or a redirect to the
+        schools list upon successful registration.
+    """
     user = User.query.get(session['user_id'])
     
     if request.method == 'POST':
@@ -140,7 +160,14 @@ def register_school():
 @super_admin_bp.route('/schools')
 @role_required('super_admin')
 def schools():
-    """List all schools"""
+    """Renders the school management page.
+
+    Displays a paginated list of all schools in the system, along with
+    their subscription status and other key details.
+
+    Returns:
+        The rendered schools list template.
+    """
     user = User.query.get(session['user_id'])
     
     page = request.args.get('page', 1, type=int)
@@ -168,7 +195,14 @@ def schools():
 @super_admin_bp.route('/users')
 @role_required('super_admin')
 def users():
-    """User management dashboard"""
+    """Renders the user management page.
+
+    Displays a paginated list of all users in the system, with options
+    for searching and filtering by role and status.
+
+    Returns:
+        The rendered user management template.
+    """
     user = User.query.get(session['user_id'])
     
     # Get search and filter parameters
@@ -217,7 +251,14 @@ def users():
 @super_admin_bp.route('/users/<int:user_id>/toggle-status', methods=['POST'])
 @role_required('super_admin')
 def toggle_user_status(user_id):
-    """Toggle user active status"""
+    """Toggles the active status of a user.
+
+    Args:
+        user_id (int): The ID of the user to update.
+
+    Returns:
+        A redirect to the user management page.
+    """
     try:
         target_user = User.query.get_or_404(user_id)
         target_user.is_active = not target_user.is_active
@@ -236,7 +277,14 @@ def toggle_user_status(user_id):
 @super_admin_bp.route('/settings')
 @role_required('super_admin')
 def settings():
-    """System settings management"""
+    """Renders the system settings page.
+
+    Displays system-wide statistics and provides options for managing the
+    application.
+
+    Returns:
+        The rendered settings template.
+    """
     user = User.query.get(session['user_id'])
     
     # Get system statistics
@@ -259,7 +307,14 @@ def settings():
 @super_admin_bp.route('/reports')
 @role_required('super_admin')
 def reports():
-    """System reports dashboard"""
+    """Renders the system-wide reports dashboard.
+
+    Displays high-level statistics about the entire system, including
+    school growth and revenue.
+
+    Returns:
+        The rendered reports template.
+    """
     user = User.query.get(session['user_id'])
     
     # Calculate comprehensive statistics
@@ -307,7 +362,14 @@ def reports():
 @super_admin_bp.route('/activity-logs')
 @role_required('super_admin')
 def activity_logs():
-    """System activity logs"""
+    """Renders the system activity logs page.
+
+    Displays a paginated list of all activity logs, with options for
+    filtering by date, user, and action.
+
+    Returns:
+        The rendered activity logs template.
+    """
     user = User.query.get(session['user_id'])
     
     # Get filter parameters
@@ -354,7 +416,14 @@ def activity_logs():
 @super_admin_bp.route('/schools/<int:school_id>/toggle-status', methods=['POST'])
 @role_required('super_admin')
 def toggle_school_status(school_id):
-    """Toggle school status"""
+    """Toggles the status of a school (active/suspended).
+
+    Args:
+        school_id (int): The ID of the school to update.
+
+    Returns:
+        A redirect to the schools list page.
+    """
     try:
         school = School.query.get_or_404(school_id)
         
@@ -378,7 +447,14 @@ def toggle_school_status(school_id):
 @super_admin_bp.route('/schools/<int:school_id>/extend-subscription', methods=['POST'])
 @role_required('super_admin')
 def extend_subscription(school_id):
-    """Extend school subscription"""
+    """Extends a school's subscription period.
+
+    Args:
+        school_id (int): The ID of the school to update.
+
+    Returns:
+        A redirect to the schools list page.
+    """
     try:
         school = School.query.get_or_404(school_id)
         months = int(request.form.get('months', 12))

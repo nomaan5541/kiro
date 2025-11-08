@@ -1,5 +1,9 @@
-"""
-Fee Management API Blueprint - Handles fee-related API endpoints
+"""Fee Management API Blueprint.
+
+Provides API endpoints for managing all aspects of fees, including recording
+payments, managing fee structures, generating receipts, sending reminders,
+and retrieving analytics. All routes in this blueprint are intended for
+school admins.
 """
 from flask import Blueprint, request, jsonify, session, send_file
 from extensions import db
@@ -18,7 +22,15 @@ fee_api_bp = Blueprint('fee_api', __name__)
 @fee_api_bp.route('/api/fees/record_payment', methods=['POST'])
 @role_required('school_admin')
 def record_payment():
-    """Record a new fee payment"""
+    """Records a new fee payment for a student.
+
+    Expects a JSON payload with student ID, amount, and payment details.
+    It uses the `FeeService` to handle the business logic of recording the
+    payment and updating the student's fee status.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -77,7 +89,14 @@ def record_payment():
 @fee_api_bp.route('/api/fees/create_structure', methods=['POST'])
 @role_required('school_admin')
 def create_fee_structure():
-    """Create a new fee structure"""
+    """Creates a new fee structure.
+
+    Expects a JSON payload with the details of the fee structure.
+    Delegates the creation logic to the `FeeService`.
+
+    Returns:
+        dict: The result of the creation operation.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -96,7 +115,14 @@ def create_fee_structure():
 @fee_api_bp.route('/api/fees/update_structure/<int:structure_id>', methods=['POST'])
 @role_required('school_admin')
 def update_fee_structure(structure_id):
-    """Update an existing fee structure"""
+    """Updates an existing fee structure.
+
+    Args:
+        structure_id (int): The ID of the fee structure to update.
+
+    Returns:
+        dict: The result of the update operation.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -114,7 +140,14 @@ def update_fee_structure(structure_id):
 @fee_api_bp.route('/api/fees/delete_structure', methods=['POST'])
 @role_required('school_admin')
 def delete_fee_structure():
-    """Delete a fee structure"""
+    """Deletes a fee structure.
+
+    A fee structure can only be deleted if there are no payments associated
+    with it.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -149,7 +182,14 @@ def delete_fee_structure():
 @fee_api_bp.route('/api/fees/receipt/<int:payment_id>')
 @role_required('school_admin')
 def view_receipt(payment_id):
-    """View payment receipt"""
+    """Generates and displays a payment receipt as a PDF.
+
+    Args:
+        payment_id (int): The ID of the payment.
+
+    Returns:
+        File: The generated PDF receipt, or an error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -176,7 +216,14 @@ def view_receipt(payment_id):
 @fee_api_bp.route('/api/fees/receipt/<int:payment_id>/download')
 @role_required('school_admin')
 def download_receipt(payment_id):
-    """Download payment receipt"""
+    """Generates and serves a payment receipt as a downloadable PDF.
+
+    Args:
+        payment_id (int): The ID of the payment.
+
+    Returns:
+        File: The generated PDF receipt as a downloadable attachment.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -205,7 +252,13 @@ def download_receipt(payment_id):
 @fee_api_bp.route('/api/fees/send_reminder', methods=['POST'])
 @role_required('school_admin')
 def send_fee_reminder():
-    """Send fee reminder to specific students"""
+    """Sends fee reminders to a specific list of students.
+
+    Expects a JSON payload with a list of student IDs.
+
+    Returns:
+        dict: The result of the reminder sending operation.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -224,7 +277,11 @@ def send_fee_reminder():
 @fee_api_bp.route('/api/fees/send_bulk_reminders', methods=['POST'])
 @role_required('school_admin')
 def send_bulk_reminders():
-    """Send fee reminders to all overdue students"""
+    """Sends fee reminders to all students with overdue fees.
+
+    Returns:
+        dict: The result of the bulk reminder operation.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -240,7 +297,11 @@ def send_bulk_reminders():
 @fee_api_bp.route('/api/fees/analytics')
 @role_required('school_admin')
 def get_fee_analytics():
-    """Get comprehensive fee analytics"""
+    """Retrieves comprehensive fee analytics for the school.
+
+    Returns:
+        dict: A dictionary containing fee analytics data.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -256,7 +317,11 @@ def get_fee_analytics():
 @fee_api_bp.route('/api/fees/defaulters')
 @role_required('school_admin')
 def get_defaulters():
-    """Get list of fee defaulters"""
+    """Retrieves a list of students with overdue fees.
+
+    Returns:
+        dict: A list of fee defaulters.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -272,7 +337,11 @@ def get_defaulters():
 @fee_api_bp.route('/api/fees/export/payments')
 @role_required('school_admin')
 def export_payments():
-    """Export payments to Excel/CSV"""
+    """Exports all payment records to a CSV file.
+
+    Returns:
+        Response: A CSV file containing payment data.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -323,7 +392,11 @@ def export_payments():
 @fee_api_bp.route('/api/fees/export/outstanding')
 @role_required('school_admin')
 def export_outstanding():
-    """Export outstanding fees to Excel/CSV"""
+    """Exports a list of students with outstanding fees to a CSV file.
+
+    Returns:
+        Response: A CSV file containing outstanding fee data.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -377,7 +450,11 @@ def export_outstanding():
 @fee_api_bp.route('/api/fees/export/defaulters')
 @role_required('school_admin')
 def export_defaulters():
-    """Export defaulters list to Excel/CSV"""
+    """Exports the fee defaulters list to a CSV file.
+
+    Returns:
+        Response: A CSV file containing the fee defaulters list.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -432,7 +509,14 @@ def export_defaulters():
 @fee_api_bp.route('/api/fees/student/<int:student_id>/status')
 @role_required('school_admin')
 def get_student_fee_status(student_id):
-    """Get fee status for a specific student"""
+    """Retrieves the fee status and payment history for a specific student.
+
+    Args:
+        student_id (int): The ID of the student.
+
+    Returns:
+        dict: A dictionary containing the student's fee status and payments.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -478,12 +562,15 @@ def get_student_fee_status(student_id):
 # Error handlers
 @fee_api_bp.errorhandler(403)
 def forbidden(error):
+    """Handles 403 Forbidden errors for the blueprint."""
     return jsonify({'error': 'Access denied'}), 403
 
 @fee_api_bp.errorhandler(404)
 def not_found(error):
+    """Handles 404 Not Found errors for the blueprint."""
     return jsonify({'error': 'Resource not found'}), 404
 
 @fee_api_bp.errorhandler(500)
 def internal_error(error):
+    """Handles 500 Internal Server errors for the blueprint."""
     return jsonify({'error': 'Internal server error'}), 500

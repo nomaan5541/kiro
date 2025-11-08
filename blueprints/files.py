@@ -1,5 +1,9 @@
-"""
-Files Blueprint - Handles secure file serving and downloads
+"""Files Blueprint.
+
+Handles secure serving and uploading of files, such as student photos,
+teacher photos, assignments, and receipts. It implements role-based access
+control to ensure that users can only access files they are authorized to
+view.
 """
 from flask import Blueprint, request, abort, session, current_app
 from models.user import User, UserRole
@@ -17,7 +21,17 @@ files_bp = Blueprint('files', __name__)
 @files_bp.route('/student/photo/<int:student_id>')
 @login_required
 def serve_student_photo(student_id):
-    """Serve student photo with access control"""
+    """Serves a student's photo with strict access control.
+
+    Access is granted based on the user's role and their relationship to the
+    student (e.g., a teacher in the same school, or the student themselves).
+
+    Args:
+        student_id (int): The ID of the student.
+
+    Returns:
+        File: The student's photo, or a 403/404 error.
+    """
     user = User.query.get(session['user_id'])
     
     # Get student
@@ -56,7 +70,16 @@ def serve_student_photo(student_id):
 @files_bp.route('/teacher/photo/<int:teacher_id>')
 @login_required
 def serve_teacher_photo(teacher_id):
-    """Serve teacher photo with access control"""
+    """Serves a teacher's photo with access control.
+
+    Access rules are based on the user's role and their school affiliation.
+
+    Args:
+        teacher_id (int): The ID of the teacher.
+
+    Returns:
+        File: The teacher's photo, or a 403/404 error.
+    """
     user = User.query.get(session['user_id'])
     
     # Get teacher
@@ -95,7 +118,16 @@ def serve_teacher_photo(teacher_id):
 @files_bp.route('/assignment/<int:assignment_id>')
 @login_required
 def serve_assignment_file(assignment_id):
-    """Serve assignment file with access control"""
+    """Serves an assignment file with access control.
+
+    Students can only access assignments for their class.
+
+    Args:
+        assignment_id (int): The ID of the assignment.
+
+    Returns:
+        File: The assignment file, or a 403/404 error.
+    """
     user = User.query.get(session['user_id'])
     
     # Get assignment
@@ -134,14 +166,31 @@ def serve_assignment_file(assignment_id):
 @files_bp.route('/assignment/<int:assignment_id>/download')
 @login_required
 def download_assignment_file(assignment_id):
-    """Download assignment file (same as serve but forces download)"""
+    """Alias for serving an assignment file that forces a download.
+
+    Args:
+        assignment_id (int): The ID of the assignment.
+
+    Returns:
+        File: The assignment file as a download.
+    """
     return serve_assignment_file(assignment_id)
 
 
 @files_bp.route('/receipt/<path:filename>')
 @login_required
 def serve_receipt(filename):
-    """Serve fee receipt with access control"""
+    """Serves a fee receipt with access control.
+
+    Access is determined by parsing the school ID from the filename and
+    comparing it with the user's school affiliation.
+
+    Args:
+        filename (str): The name of the receipt file.
+
+    Returns:
+        File: The receipt file, or a 403 error.
+    """
     user = User.query.get(session['user_id'])
     
     # Only allow access to receipts from user's school
@@ -182,7 +231,17 @@ def serve_receipt(filename):
 @files_bp.route('/backup/<path:filename>')
 @login_required
 def serve_backup(filename):
-    """Serve backup file - only for super admin and school admin"""
+    """Serves a backup file with access control.
+
+    Only super admins and school admins can access backups. School admins
+    are restricted to backups from their own school.
+
+    Args:
+        filename (str): The name of the backup file.
+
+    Returns:
+        File: The backup file, or a 403 error.
+    """
     user = User.query.get(session['user_id'])
     
     # Only super admin and school admin can access backups
@@ -217,7 +276,17 @@ def serve_backup(filename):
 @files_bp.route('/upload/student/photo/<int:student_id>', methods=['POST'])
 @login_required
 def upload_student_photo(student_id):
-    """Upload student photo"""
+    """Handles the upload of a student's photo.
+
+    Allows school admins and teachers to upload a photo for a student in
+    their school.
+
+    Args:
+        student_id (int): The ID of the student.
+
+    Returns:
+        dict: A success or error message, along with the URL of the new photo.
+    """
     user = User.query.get(session['user_id'])
     
     # Get student
@@ -266,7 +335,17 @@ def upload_student_photo(student_id):
 @files_bp.route('/upload/teacher/photo/<int:teacher_id>', methods=['POST'])
 @login_required
 def upload_teacher_photo(teacher_id):
-    """Upload teacher photo"""
+    """Handles the upload of a teacher's photo.
+
+    Allows school admins to upload photos for teachers in their school, and
+    teachers to upload their own photo.
+
+    Args:
+        teacher_id (int): The ID of the teacher.
+
+    Returns:
+        dict: A success or error message, along with the URL of the new photo.
+    """
     user = User.query.get(session['user_id'])
     
     # Get teacher
@@ -315,7 +394,12 @@ def upload_teacher_photo(teacher_id):
 @files_bp.route('/upload/assignment', methods=['POST'])
 @login_required
 def upload_assignment_file():
-    """Upload assignment file - only teachers can upload"""
+    """Handles the upload of an assignment file by a teacher.
+
+    Returns:
+        dict: A success or error message, along with information about the
+              uploaded file.
+    """
     user = User.query.get(session['user_id'])
     
     # Only teachers can upload assignments
@@ -364,7 +448,17 @@ def upload_assignment_file():
 @files_bp.route('/api/files/list')
 @login_required
 def list_files():
-    """List files in a directory"""
+    """Lists files in a specified directory.
+
+    Accessible only by admin users. Can list files in a specific directory
+    or all files across all managed directories.
+
+    Args:
+        directory (str, optional): The directory to list. Defaults to 'all'.
+
+    Returns:
+        dict: A list of files with their metadata.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can access file manager
@@ -426,7 +520,16 @@ def list_files():
 @files_bp.route('/api/files/download')
 @login_required
 def download_file():
-    """Download a file"""
+    """Serves a file for download.
+
+    Accessible only by admin users.
+
+    Args:
+        path (str): The path to the file to download.
+
+    Returns:
+        File: The requested file as a download.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can download files through file manager
@@ -444,7 +547,16 @@ def download_file():
 @files_bp.route('/api/files/view')
 @login_required
 def view_file():
-    """View a file in browser"""
+    """Serves a file for viewing in the browser.
+
+    Accessible only by admin users.
+
+    Args:
+        path (str): The path to the file to view.
+
+    Returns:
+        File: The requested file.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can view files through file manager
@@ -462,7 +574,16 @@ def view_file():
 @files_bp.route('/api/files/delete', methods=['POST'])
 @login_required
 def delete_file():
-    """Delete a file"""
+    """Deletes a file from the server.
+
+    Accessible only by admin users.
+
+    Args:
+        path (str): The path to the file to delete.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can delete files
@@ -488,7 +609,17 @@ def delete_file():
 @files_bp.route('/api/files/upload', methods=['POST'])
 @login_required
 def upload_files():
-    """Upload multiple files"""
+    """Handles the upload of multiple files by an admin user.
+
+    Args:
+        directory (str, optional): The directory to upload the files to.
+                                   Defaults to 'temp'.
+        files (list): The list of files to upload.
+
+    Returns:
+        dict: A summary of the upload operation, including the number of
+              successful uploads and any errors.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can upload files through file manager
@@ -528,7 +659,13 @@ def upload_files():
 @files_bp.route('/api/files/cleanup', methods=['POST'])
 @login_required
 def cleanup_temp_files():
-    """Clean up temporary files"""
+    """Cleans up temporary files older than a specified age.
+
+    Accessible only by admin users.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can cleanup files
@@ -548,7 +685,14 @@ def cleanup_temp_files():
 @files_bp.route('/api/files/stats')
 @login_required
 def get_storage_stats():
-    """Get storage statistics"""
+    """Retrieves storage statistics for the application.
+
+    Calculates the total size of uploaded files and provides a breakdown by
+    directory and file type. Accessible only by admin users.
+
+    Returns:
+        dict: A dictionary containing storage statistics.
+    """
     user = User.query.get(session['user_id'])
     
     # Only admin users can view storage stats
@@ -617,12 +761,15 @@ def get_storage_stats():
 # Error handlers
 @files_bp.errorhandler(403)
 def forbidden(error):
+    """Handles 403 Forbidden errors for the blueprint."""
     return {'error': 'Access denied'}, 403
 
 @files_bp.errorhandler(404)
 def not_found(error):
+    """Handles 404 Not Found errors for the blueprint."""
     return {'error': 'File not found'}, 404
 
 @files_bp.errorhandler(500)
 def internal_error(error):
+    """Handles 500 Internal Server errors for the blueprint."""
     return {'error': 'Internal server error'}, 500

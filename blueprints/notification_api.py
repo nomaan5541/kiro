@@ -1,5 +1,8 @@
-"""
-Notification API Blueprint - Handles notification-related API endpoints
+"""Notification API Blueprint.
+
+Provides API endpoints for sending notifications, managing notification
+templates, and retrieving notification statistics. All routes in this
+blueprint are intended for school admins.
 """
 from flask import Blueprint, request, jsonify, session, Response
 from extensions import db
@@ -18,7 +21,15 @@ notification_api_bp = Blueprint('notification_api', __name__)
 @notification_api_bp.route('/api/notifications/send', methods=['POST'])
 @role_required('school_admin')
 def send_notification():
-    """Send notification to selected recipients"""
+    """Sends a notification to a list of recipients.
+
+    Can send via multiple channels (SMS, WhatsApp, Email) and can use either
+    a pre-existing template or a custom message.
+
+    Returns:
+        dict: A summary of the send operation, including the number of
+              notifications sent and the results for each recipient.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -139,7 +150,14 @@ def send_notification():
 @notification_api_bp.route('/api/notifications/templates', methods=['POST'])
 @role_required('school_admin')
 def create_template():
-    """Create a new notification template"""
+    """Creates a new notification template.
+
+    Expects a JSON payload with the template name, type, channel, subject,
+    and message.
+
+    Returns:
+        dict: The ID of the newly created template.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -180,7 +198,14 @@ def create_template():
 @notification_api_bp.route('/api/notifications/templates/<int:template_id>', methods=['PUT'])
 @role_required('school_admin')
 def update_template(template_id):
-    """Update an existing notification template"""
+    """Updates an existing notification template.
+
+    Args:
+        template_id (int): The ID of the template to update.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -214,7 +239,17 @@ def update_template(template_id):
 @notification_api_bp.route('/api/notifications/templates/<int:template_id>', methods=['DELETE'])
 @role_required('school_admin')
 def delete_template(template_id):
-    """Delete a notification template"""
+    """Deletes a notification template.
+
+    If the template has been used, it is soft-deleted by marking it as
+    inactive. Otherwise, it is hard-deleted from the database.
+
+    Args:
+        template_id (int): The ID of the template to delete.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -247,7 +282,14 @@ def delete_template(template_id):
 @notification_api_bp.route('/api/notifications/<int:notification_id>/resend', methods=['POST'])
 @role_required('school_admin')
 def resend_notification(notification_id):
-    """Resend a failed notification"""
+    """Resends a failed notification.
+
+    Args:
+        notification_id (int): The ID of the notification to resend.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -292,7 +334,11 @@ def resend_notification(notification_id):
 @notification_api_bp.route('/api/notifications/statistics')
 @role_required('school_admin')
 def get_statistics():
-    """Get detailed notification statistics"""
+    """Retrieves detailed notification delivery statistics.
+
+    Returns:
+        dict: A dictionary containing notification statistics.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -308,7 +354,11 @@ def get_statistics():
 @notification_api_bp.route('/api/notifications/export')
 @role_required('school_admin')
 def export_notifications():
-    """Export notification logs to CSV"""
+    """Exports notification logs to a CSV file.
+
+    Returns:
+        Response: A CSV file containing notification log data.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -358,7 +408,13 @@ def export_notifications():
 @notification_api_bp.route('/api/notifications/send_bulk_reminders', methods=['POST'])
 @role_required('school_admin')
 def send_bulk_reminders():
-    """Send bulk fee reminders to all overdue students"""
+    """Sends bulk fee reminders to all students with overdue fees.
+
+    This route is a convenience wrapper around the `FeeService` functionality.
+
+    Returns:
+        dict: The result of the bulk reminder operation.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -376,7 +432,14 @@ def send_bulk_reminders():
 @notification_api_bp.route('/api/notifications/send_attendance_alerts', methods=['POST'])
 @role_required('school_admin')
 def send_attendance_alerts():
-    """Send attendance alerts for today's absent students"""
+    """Triggers the sending of attendance alerts for the current day.
+
+    This is typically a scheduled task, but this endpoint allows for manual
+    triggering.
+
+    Returns:
+        dict: A success or error message.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -394,7 +457,16 @@ def send_attendance_alerts():
 @notification_api_bp.route('/api/notifications/templates/<int:template_id>/preview', methods=['POST'])
 @role_required('school_admin')
 def preview_template(template_id):
-    """Preview a notification template with sample data"""
+    """Generates a preview of a notification template.
+
+    Renders the template with sample data to show how it will look.
+
+    Args:
+        template_id (int): The ID of the template to preview.
+
+    Returns:
+        dict: The rendered subject and message of the template.
+    """
     user = User.query.get(session['user_id'])
     
     try:
@@ -436,12 +508,15 @@ def preview_template(template_id):
 # Error handlers
 @notification_api_bp.errorhandler(403)
 def forbidden(error):
+    """Handles 403 Forbidden errors for the blueprint."""
     return jsonify({'error': 'Access denied'}), 403
 
 @notification_api_bp.errorhandler(404)
 def not_found(error):
+    """Handles 404 Not Found errors for the blueprint."""
     return jsonify({'error': 'Resource not found'}), 404
 
 @notification_api_bp.errorhandler(500)
 def internal_error(error):
+    """Handles 500 Internal Server errors for the blueprint."""
     return jsonify({'error': 'Internal server error'}), 500

@@ -1,5 +1,8 @@
-"""
-School Admin Blueprint - Handles school operations and management
+"""School Admin Blueprint.
+
+This blueprint contains all the routes and logic for the school administrator's
+dashboard and management functions. It covers student, teacher, and class
+management, as well as fee collection, attendance, reporting, and settings.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from extensions import db
@@ -14,7 +17,16 @@ school_admin_bp = Blueprint('school_admin', __name__)
 @school_admin_bp.route('/dashboard')
 @role_required('school_admin')
 def dashboard():
-    """Enhanced school admin dashboard with comprehensive KPIs and charts"""
+    """Renders the main dashboard for the school admin.
+
+    This dashboard provides a comprehensive overview of the school's key
+    performance indicators (KPIs), including student and teacher statistics,
+    attendance, and fee collection. It also displays charts for visualizing
+    trends and data distributions.
+
+    Returns:
+        The rendered dashboard template with all the necessary data.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -87,7 +99,15 @@ def dashboard():
 @school_admin_bp.route('/students')
 @role_required('school_admin')
 def students():
-    """List all students"""
+    """Renders the student list page with search and filtering.
+
+    Displays a paginated list of all students in the school. Allows for
+    searching by name, admission number, etc., and filtering by class and
+    status.
+
+    Returns:
+        The rendered student list template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -139,7 +159,15 @@ def students():
 @school_admin_bp.route('/students/add', methods=['GET', 'POST'])
 @role_required('school_admin')
 def add_student():
-    """Add new student"""
+    """Handles the creation of a new student record.
+
+    Displays the form for adding a new student and processes the form
+    submission. Includes data validation and photo upload functionality.
+
+    Returns:
+        The rendered "add student" template, or a redirect to the student
+        list upon successful creation.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -233,7 +261,14 @@ def add_student():
 @school_admin_bp.route('/students/<int:student_id>')
 @role_required('school_admin')
 def student_profile(student_id):
-    """View student profile"""
+    """Displays the profile page for a specific student.
+
+    Args:
+        student_id (int): The ID of the student to view.
+
+    Returns:
+        The rendered student profile template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -246,7 +281,18 @@ def student_profile(student_id):
 @school_admin_bp.route('/students/<int:student_id>/edit', methods=['GET', 'POST'])
 @role_required('school_admin')
 def edit_student(student_id):
-    """Edit student information"""
+    """Handles the editing of a student's information.
+
+    Displays the form for editing a student's record and processes the
+    form submission.
+
+    Args:
+        student_id (int): The ID of the student to edit.
+
+    Returns:
+        The rendered "edit student" template, or a redirect to the student's
+        profile upon successful update.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -310,7 +356,15 @@ def edit_student(student_id):
 @school_admin_bp.route('/attendance', methods=['GET', 'POST'])
 @role_required('school_admin')
 def attendance():
-    """Mark attendance for students"""
+    """Handles attendance marking and viewing.
+
+    Allows the admin to select a class and a date to view and mark
+    attendance for students in that class.
+
+    Returns:
+        The rendered attendance template with the necessary data for the
+        selected class and date.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -413,7 +467,14 @@ def attendance():
 @school_admin_bp.route('/fees')
 @role_required('school_admin')
 def fees():
-    """Enhanced fee management dashboard with comprehensive analytics"""
+    """Renders the fee management dashboard.
+
+    Displays comprehensive fee statistics, recent payments, and a list of
+    students with pending fees.
+
+    Returns:
+        The rendered fee management dashboard template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -448,7 +509,11 @@ def fees():
 @school_admin_bp.route('/fees/statistics')
 @role_required('school_admin')
 def get_fee_statistics():
-    """API endpoint for fee statistics"""
+    """API endpoint to retrieve fee statistics.
+
+    Returns:
+        JSON: A JSON object containing comprehensive fee statistics.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -463,7 +528,16 @@ def get_fee_statistics():
 @school_admin_bp.route('/fees/search_students')
 @role_required('school_admin')
 def search_students():
-    """Search students for fee collection"""
+    """API endpoint for searching students for fee collection.
+
+    Searches for students by name, admission number, or roll number.
+
+    Args:
+        q (str): The search query.
+
+    Returns:
+        JSON: A JSON object containing a list of matching students.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -512,7 +586,15 @@ def search_students():
 @school_admin_bp.route('/fees/student/<int:student_id>/structure')
 @role_required('school_admin')
 def get_student_fee_structure(student_id):
-    """Get fee structure for a specific student"""
+    """API endpoint to get the fee structure for a specific student.
+
+    Args:
+        student_id (int): The ID of the student.
+
+    Returns:
+        JSON: A JSON object containing the student's fee structure and
+              payment status.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -583,7 +665,15 @@ def get_student_fee_structure(student_id):
 @school_admin_bp.route('/fees/process_payment', methods=['POST'])
 @role_required('school_admin')
 def process_payment():
-    """Process fee payment"""
+    """API endpoint to process a fee payment.
+
+    Handles the creation of a payment record and updates the student's
+    fee status.
+
+    Returns:
+        JSON: A JSON object with the result of the payment and the
+              digital receipt data.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -678,7 +768,15 @@ def process_payment():
 @school_admin_bp.route('/fees/create_payment_order', methods=['POST'])
 @role_required('school_admin')
 def create_payment_order():
-    """Create payment order for online payment gateways"""
+    """API endpoint to create a payment order with an online gateway.
+
+    Interfaces with services like Razorpay or Stripe to create a payment
+    order or intent.
+
+    Returns:
+        JSON: A JSON object containing the order details from the payment
+              gateway.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -738,7 +836,15 @@ def create_payment_order():
 @school_admin_bp.route('/fees/verify_payment', methods=['POST'])
 @role_required('school_admin')
 def verify_payment():
-    """Verify online payment"""
+    """API endpoint to verify an online payment.
+
+    Verifies the payment with the payment gateway and, if successful,
+    processes the payment in the system.
+
+    Returns:
+        JSON: A JSON object with the result of the verification and the
+              digital receipt data.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -787,7 +893,17 @@ def verify_payment():
 
 
 def get_comprehensive_fee_stats(school_id):
-    """Get comprehensive fee statistics"""
+    """Calculates comprehensive fee statistics for the fee dashboard.
+
+    This function gathers data on total collections, pending fees, overdue
+    amounts, and other key financial metrics.
+
+    Args:
+        school_id (int): The ID of the school.
+
+    Returns:
+        dict: A dictionary of fee statistics.
+    """
     from models.fee import Payment, StudentFeeStatus, PaymentMode
     from models.student import Student
     from datetime import datetime, date, timedelta
@@ -889,7 +1005,16 @@ def get_comprehensive_fee_stats(school_id):
 
 
 def generate_digital_receipt(payment, student, school):
-    """Generate digital receipt data"""
+    """Generates the data for a digital fee receipt.
+
+    Args:
+        payment (Payment): The payment object.
+        student (Student): The student object.
+        school (School): The school object.
+
+    Returns:
+        dict: A dictionary of data for rendering a digital receipt.
+    """
     from utils.helpers import generate_qr_verification_url
     
     # Generate fee breakdown (simplified)
@@ -921,7 +1046,22 @@ def generate_digital_receipt(payment, student, school):
 
 
 def process_verified_payment(student_id, amount, payment_method, reference_number, user, school):
-    """Process a verified online payment"""
+    """Processes a payment that has been verified by an online gateway.
+
+    This function is called after a successful online payment verification
+    to record the transaction in the system.
+
+    Args:
+        student_id (int): The ID of the student.
+        amount (float): The payment amount.
+        payment_method (str): The method of payment.
+        reference_number (str): The transaction ID from the payment gateway.
+        user (User): The user who initiated the payment.
+        school (School): The school object.
+
+    Returns:
+        dict: The digital receipt data for the payment.
+    """
     from models.student import Student
     from models.fee import Payment, PaymentMode, PaymentStatus, StudentFeeStatus, FeeStructure
     from utils.helpers import generate_receipt_number
@@ -980,7 +1120,13 @@ def process_verified_payment(student_id, amount, payment_method, reference_numbe
 @school_admin_bp.route('/notifications')
 @role_required('school_admin')
 def notifications():
-    """Notification management dashboard"""
+    """Renders the notification management dashboard.
+
+    Displays notification statistics, recent logs, and available templates.
+
+    Returns:
+        The rendered notification management template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1009,7 +1155,15 @@ def notifications():
 @school_admin_bp.route('/notifications/send', methods=['POST'])
 @role_required('school_admin')
 def send_notification():
-    """Send notification to selected recipients"""
+    """API endpoint to send a notification to selected recipient groups.
+
+    This is distinct from the more granular `send_notification` in the
+    `notification_api` blueprint. It's designed for sending bulk messages
+    to predefined groups like 'all parents' or 'all teachers'.
+
+    Returns:
+        JSON: A JSON object with the results of the send operation.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1119,7 +1273,14 @@ def send_notification():
 @school_admin_bp.route('/notifications/log/<int:log_id>')
 @role_required('school_admin')
 def get_notification_log(log_id):
-    """Get notification log details"""
+    """API endpoint to get the details of a specific notification log.
+
+    Args:
+        log_id (int): The ID of the notification log.
+
+    Returns:
+        JSON: A JSON object with the log details.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1139,7 +1300,11 @@ def get_notification_log(log_id):
 @school_admin_bp.route('/notifications/retry', methods=['POST'])
 @role_required('school_admin')
 def retry_notification():
-    """Retry failed notification"""
+    """API endpoint to retry a failed notification.
+
+    Returns:
+        JSON: A JSON object with the result of the retry attempt.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1201,7 +1366,14 @@ def retry_notification():
 @school_admin_bp.route('/notifications/templates', methods=['GET', 'POST'])
 @role_required('school_admin')
 def manage_notification_templates():
-    """Manage notification templates"""
+    """API endpoint for managing notification templates.
+
+    Handles both the creation of new templates (POST) and the listing of
+    existing templates (GET).
+
+    Returns:
+        JSON: A JSON object with the result of the operation.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1256,7 +1428,14 @@ def manage_notification_templates():
 @school_admin_bp.route('/notifications/auto-send')
 @role_required('school_admin')
 def auto_send_notifications():
-    """Trigger automatic notifications (for testing/manual trigger)"""
+    """API endpoint to manually trigger scheduled notifications.
+
+    Useful for testing or for sending notifications outside of the scheduled
+    time.
+
+    Returns:
+        JSON: A JSON object with the result of the operation.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1285,7 +1464,13 @@ def auto_send_notifications():
 @school_admin_bp.route('/record_payment', methods=['POST'])
 @role_required('school_admin')
 def record_payment():
-    """Record a fee payment"""
+    """Handles the form submission for recording a fee payment.
+
+    This route is for manual payment recording by the school admin.
+
+    Returns:
+        A redirect to the fee management page.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1375,7 +1560,15 @@ def record_payment():
 @school_admin_bp.route('/teachers')
 @role_required('school_admin')
 def teachers():
-    """List all teachers"""
+    """Renders the teacher list page with search and filtering.
+
+    Displays a paginated list of all teachers in the school. Allows for
+    searching by name, employee ID, etc., and filtering by subject and
+    status.
+
+    Returns:
+        The rendered teacher list template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1429,7 +1622,14 @@ def teachers():
 @school_admin_bp.route('/teachers/<int:teacher_id>')
 @role_required('school_admin')
 def view_teacher(teacher_id):
-    """View teacher profile with comprehensive information"""
+    """Displays the profile page for a specific teacher.
+
+    Args:
+        teacher_id (int): The ID of the teacher to view.
+
+    Returns:
+        The rendered teacher profile template.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1478,7 +1678,18 @@ def view_teacher(teacher_id):
 @school_admin_bp.route('/teachers/<int:teacher_id>/edit', methods=['GET', 'POST'])
 @role_required('school_admin')
 def edit_teacher(teacher_id):
-    """Edit teacher information"""
+    """Handles the editing of a teacher's information.
+
+    Displays the form for editing a teacher's record and processes the
+    form submission.
+
+    Args:
+        teacher_id (int): The ID of the teacher to edit.
+
+    Returns:
+        The rendered "edit teacher" template, or a redirect to the teacher's
+        profile upon successful update.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1533,7 +1744,16 @@ def edit_teacher(teacher_id):
 @school_admin_bp.route('/teachers/add', methods=['GET', 'POST'])
 @role_required('school_admin')
 def add_teacher():
-    """Add new teacher"""
+    """Handles the creation of a new teacher record.
+
+    Displays the form for adding a new teacher and processes the form
+    submission. Includes the option to create a user account for the
+    teacher.
+
+    Returns:
+        The rendered "add teacher" template, or a redirect to the teacher
+        list upon successful creation.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1600,7 +1820,14 @@ def add_teacher():
 @school_admin_bp.route('/classes')
 @role_required('school_admin')
 def classes():
-    """List all classes"""
+    """Renders the class list page with search and filtering.
+
+    Displays a paginated list of all classes in the school. Allows for
+    searching by class name or section and filtering by academic year.
+
+    Returns:
+        The rendered class list template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1652,7 +1879,17 @@ def classes():
 @school_admin_bp.route('/classes/<int:class_id>')
 @role_required('school_admin')
 def view_class(class_id):
-    """View class details with student list"""
+    """Displays the profile page for a specific class.
+
+    Shows details about the class, its teacher, and a list of enrolled
+    students.
+
+    Args:
+        class_id (int): The ID of the class to view.
+
+    Returns:
+        The rendered class profile template.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1688,7 +1925,17 @@ def view_class(class_id):
 @school_admin_bp.route('/classes/<int:class_id>/edit', methods=['GET', 'POST'])
 @role_required('school_admin')
 def edit_class(class_id):
-    """Edit class information"""
+    """Handles the editing of a class's information.
+
+    Displays the form for editing a class and processes the form submission.
+
+    Args:
+        class_id (int): The ID of the class to edit.
+
+    Returns:
+        The rendered "edit class" template, or a redirect to the class
+        profile upon successful update.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1727,7 +1974,15 @@ def edit_class(class_id):
 @school_admin_bp.route('/classes/add', methods=['GET', 'POST'])
 @role_required('school_admin')
 def add_class():
-    """Add new class"""
+    """Handles the creation of a new class.
+
+    Displays the form for adding a new class and processes the form
+    submission.
+
+    Returns:
+        The rendered "add class" template, or a redirect to the class list
+        upon successful creation.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1768,7 +2023,15 @@ def add_class():
 @school_admin_bp.route('/classes/<int:class_id>/promote', methods=['GET', 'POST'])
 @role_required('school_admin')
 def promote_class(class_id):
-    """Promote students to next class"""
+    """Handles the promotion of students from one class to another.
+
+    Args:
+        class_id (int): The ID of the class from which to promote students.
+
+    Returns:
+        The rendered "promote class" template, or a redirect to the class
+        profile upon successful promotion.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -1819,7 +2082,13 @@ def promote_class(class_id):
 @school_admin_bp.route('/subjects')
 @role_required('school_admin')
 def subjects():
-    """List all subjects"""
+    """Renders the subject list page with search functionality.
+
+    Displays a paginated list of all subjects in the school.
+
+    Returns:
+        The rendered subject list template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
 
@@ -1856,7 +2125,12 @@ def subjects():
 @school_admin_bp.route('/subjects/add', methods=['GET', 'POST'])
 @role_required('school_admin')
 def add_subject():
-    """Add new subject"""
+    """Handles the creation of a new subject.
+
+    Returns:
+        The rendered "add subject" template, or a redirect to the subject
+        list upon successful creation.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
 
@@ -1895,7 +2169,15 @@ def add_subject():
 @school_admin_bp.route('/subjects/<int:subject_id>/edit', methods=['GET', 'POST'])
 @role_required('school_admin')
 def edit_subject(subject_id):
-    """Edit subject information"""
+    """Handles the editing of a subject's information.
+
+    Args:
+        subject_id (int): The ID of the subject to edit.
+
+    Returns:
+        The rendered "edit subject" template, or a redirect to the subject
+        list upon successful update.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
 
@@ -1931,7 +2213,14 @@ def edit_subject(subject_id):
 @school_admin_bp.route('/subjects/<int:subject_id>/delete', methods=['POST'])
 @role_required('school_admin')
 def delete_subject(subject_id):
-    """Delete a subject"""
+    """Handles the deletion of a subject.
+
+    Args:
+        subject_id (int): The ID of the subject to delete.
+
+    Returns:
+        A redirect to the subject list.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
 
@@ -1956,7 +2245,14 @@ def delete_subject(subject_id):
 @school_admin_bp.route('/reports')
 @role_required('school_admin')
 def reports():
-    """Enhanced reports dashboard with comprehensive analytics"""
+    """Renders the main reports dashboard.
+
+    Displays a high-level overview of school statistics and provides links
+    to more detailed reports.
+
+    Returns:
+        The rendered reports dashboard template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -1978,7 +2274,14 @@ def reports():
 @school_admin_bp.route('/reports/generate', methods=['POST'])
 @role_required('school_admin')
 def generate_report():
-    """Generate comprehensive reports based on category and type"""
+    """API endpoint for generating a report.
+
+    Interfaces with the `AdvancedReportService` to generate various types
+    of reports based on the provided category, type, and filters.
+
+    Returns:
+        JSON: A JSON object containing the generated report data.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2009,7 +2312,13 @@ def generate_report():
 @school_admin_bp.route('/reports/export', methods=['POST'])
 @role_required('school_admin')
 def export_report():
-    """Export reports in various formats (PDF, Excel, CSV)"""
+    """API endpoint for exporting a report to PDF, Excel, or CSV.
+
+    Uses the `AdvancedReportService` to format and export the report data.
+
+    Returns:
+        Response: A file download of the exported report.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2047,7 +2356,14 @@ def export_report():
 
 
 def get_comprehensive_stats(school_id):
-    """Get comprehensive statistics for the reports dashboard"""
+    """Calculates comprehensive statistics for the main reports dashboard.
+
+    Args:
+        school_id (int): The ID of the school.
+
+    Returns:
+        dict: A dictionary of statistics.
+    """
     from models.student import Student, StudentStatus
     from models.teacher import Teacher
     from models.classes import Class, Subject
@@ -2167,7 +2483,17 @@ def get_comprehensive_stats(school_id):
 @school_admin_bp.route('/students/<int:student_id>/delete', methods=['POST'])
 @role_required('school_admin')
 def delete_student(student_id):
-    """Delete a student"""
+    """Handles the deletion of a student.
+
+    This function also deletes all related records, such as attendance and
+    fee payments.
+
+    Args:
+        student_id (int): The ID of the student to delete.
+
+    Returns:
+        A redirect to the student list.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2206,7 +2532,11 @@ def delete_student(student_id):
 @school_admin_bp.route('/students/export')
 @role_required('school_admin')
 def export_students():
-    """Export students to CSV"""
+    """Exports student data to a CSV file.
+
+    Returns:
+        Response: A CSV file download.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2228,7 +2558,12 @@ def export_students():
 @school_admin_bp.route('/students/import', methods=['GET', 'POST'])
 @role_required('school_admin')
 def import_students():
-    """Import students from CSV"""
+    """Handles the import of students from a CSV file.
+
+    Returns:
+        The rendered "import students" template, or a redirect to the
+        student list upon successful import.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2266,7 +2601,11 @@ def import_students():
 @school_admin_bp.route('/students/generate-admission-number')
 @role_required('school_admin')
 def generate_admission_number_api():
-    """Generate admission number via API"""
+    """API endpoint to generate a new, unique admission number.
+
+    Returns:
+        JSON: A JSON object containing the new admission number.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2280,7 +2619,22 @@ def generate_admission_number_api():
 @school_admin_bp.route('/setup_wizard', methods=['GET', 'POST'])
 @role_required('school_admin')
 def setup_wizard():
-    """Setup wizard for new schools"""
+    """Provides a multi-step setup wizard for new schools.
+
+    This wizard guides the school admin through the initial configuration
+    of their school, including setting up classes, fee structures, and
+    subjects. The wizard uses the session to store data between steps.
+
+    The steps are:
+    1. Select classes.
+    2. Set fee structures for the selected classes.
+    3. Select subjects for the selected classes.
+    4. Confirmation and creation of all the records.
+
+    Returns:
+        The rendered setup wizard template for the current step, or a
+        redirect to the dashboard upon completion.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2428,7 +2782,14 @@ def setup_wizard():
 @school_admin_bp.route('/file_manager')
 @role_required('school_admin')
 def file_manager():
-    """File manager page"""
+    """Renders the file manager page.
+
+    Displays statistics about file storage and provides an interface for
+    managing uploaded files.
+
+    Returns:
+        The rendered file manager template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2496,7 +2857,11 @@ def file_manager():
 @school_admin_bp.route('/fee_analytics')
 @role_required('school_admin')
 def fee_analytics():
-    """Fee analytics dashboard"""
+    """Renders the fee analytics dashboard.
+
+    Returns:
+        The rendered fee analytics dashboard template.
+    """
     user = User.query.get(session['user_id'])
     school = user.school
     
@@ -2508,7 +2873,13 @@ def fee_analytics():
 @school_admin_bp.route('/fee_management')
 @role_required('school_admin')
 def fee_management():
-    """Fee management dashboard"""
+    """Renders the main fee management dashboard.
+
+    This is a more comprehensive fee dashboard than the one at `/fees`.
+
+    Returns:
+        The rendered fee management template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2571,7 +2942,11 @@ def fee_management():
 @school_admin_bp.route('/notification_center')
 @role_required('school_admin')
 def notification_center():
-    """Notification center dashboard"""
+    """Renders the notification center dashboard.
+
+    Returns:
+        The rendered notification center template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2628,7 +3003,11 @@ def notification_center():
 @school_admin_bp.route('/settings')
 @role_required('school_admin')
 def settings():
-    """School settings page"""
+    """Renders the school settings page.
+
+    Returns:
+        The rendered settings template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -2637,7 +3016,14 @@ def settings():
 # Dashboard Helper Functions
 
 def calculate_dashboard_kpis(school_id):
-    """Calculate comprehensive KPIs for dashboard"""
+    """Calculates comprehensive KPIs for the main dashboard.
+
+    Args:
+        school_id (int): The ID of the school.
+
+    Returns:
+        dict: A dictionary of KPIs.
+    """
     from models.student import Student, StudentStatus
     from models.teacher import Teacher, TeacherStatus
     from models.classes import Class, Subject
@@ -2765,7 +3151,14 @@ def calculate_dashboard_kpis(school_id):
 
 
 def generate_chart_data(school_id):
-    """Generate data for dashboard charts"""
+    """Generates data for the charts on the main dashboard.
+
+    Args:
+        school_id (int): The ID of the school.
+
+    Returns:
+        dict: A dictionary of data for the dashboard charts.
+    """
     from models.student import Student
     from models.teacher import Teacher
     from models.classes import Class
@@ -2879,7 +3272,19 @@ def generate_chart_data(school_id):
 
 
 def get_recent_activities(school_id, limit=10):
-    """Get recent activities for the school"""
+    """Retrieves a list of recent activities in the school.
+
+    This function aggregates recent events like new student additions, fee
+    payments, and attendance marking to create an activity feed.
+
+    Args:
+        school_id (int): The ID of the school.
+        limit (int, optional): The maximum number of activities to return.
+                               Defaults to 10.
+
+    Returns:
+        list: A list of recent activity dictionaries.
+    """
     from models.student import Student
     from models.teacher import Teacher
     from models.fee import Payment
@@ -2939,7 +3344,18 @@ def get_recent_activities(school_id, limit=10):
 
 
 def get_top_students(school_id, limit=5):
-    """Get top performing students (placeholder implementation)"""
+    """Retrieves a list of top-performing students.
+
+    Note: This is a placeholder implementation and uses random data.
+
+    Args:
+        school_id (int): The ID of the school.
+        limit (int, optional): The number of students to return.
+                               Defaults to 5.
+
+    Returns:
+        list: A list of top-performing student objects.
+    """
     from models.student import Student
     import random
     
@@ -2953,7 +3369,15 @@ def get_top_students(school_id, limit=5):
 
 
 def calculate_subscription_status(school):
-    """Calculate subscription status and days remaining"""
+    """Calculates the school's subscription status.
+
+    Args:
+        school (School): The school object.
+
+    Returns:
+        dict: A dictionary containing the days remaining and the status
+              ('active', 'warning', 'critical', 'expired').
+    """
     from datetime import date, datetime
     
     if school.subscription_end:
@@ -2986,7 +3410,14 @@ def calculate_subscription_status(school):
 
 
 def get_time_ago(dt):
-    """Get human readable time ago string"""
+    """Converts a datetime object to a human-readable "time ago" string.
+
+    Args:
+        dt (datetime): The datetime object to convert.
+
+    Returns:
+        str: A string like "5m ago", "2h ago", or "3d ago".
+    """
     from datetime import datetime
     
     now = datetime.now()
@@ -3008,7 +3439,14 @@ def get_time_ago(dt):
 @school_admin_bp.route('/dashboard/data')
 @role_required('school_admin')
 def dashboard_data():
-    """API endpoint for real-time dashboard data updates"""
+    """API endpoint for fetching real-time dashboard data.
+
+    This is used for AJAX calls from the dashboard to update KPIs and the
+    activity feed without a full page reload.
+
+    Returns:
+        JSON: A JSON object with updated dashboard data.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -3035,7 +3473,14 @@ def dashboard_data():
 @school_admin_bp.route('/reports/student-reports')
 @role_required('school_admin')
 def student_reports():
-    """Student reports dashboard"""
+    """Renders the student reports dashboard.
+
+    Allows for the generation and viewing of various student-related
+    reports, such as enrollment, performance, and attendance.
+
+    Returns:
+        The rendered student reports template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -3084,7 +3529,14 @@ def student_reports():
 @school_admin_bp.route('/reports/financial-reports')
 @role_required('school_admin')
 def financial_reports():
-    """Financial reports dashboard"""
+    """Renders the financial reports dashboard.
+
+    Allows for the generation and viewing of financial reports like fee
+    collection, outstanding fees, and monthly/yearly revenue.
+
+    Returns:
+        The rendered financial reports template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -3137,7 +3589,14 @@ def financial_reports():
 @school_admin_bp.route('/reports/academic-reports')
 @role_required('school_admin')
 def academic_reports():
-    """Academic reports dashboard"""
+    """Renders the academic reports dashboard.
+
+    Allows for the generation and viewing of academic reports, such as
+    class-wise performance and teacher performance.
+
+    Returns:
+        The rendered academic reports template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     
@@ -3172,7 +3631,14 @@ def academic_reports():
 @school_admin_bp.route('/reports/administrative-reports')
 @role_required('school_admin')
 def administrative_reports():
-    """Administrative reports dashboard"""
+    """Renders the administrative reports dashboard.
+
+    Allows for the generation and viewing of administrative reports like
+    staff reports and activity logs.
+
+    Returns:
+        The rendered administrative reports template.
+    """
     user = User.query.get(session['user_id'])
     school = School.query.get(user.school_id)
     

@@ -1,5 +1,8 @@
-"""
-Teacher Blueprint - Handles teacher-specific functionality
+"""Teacher Blueprint.
+
+This blueprint handles all functionality for the teacher-facing part of the
+application. It includes the teacher's dashboard, profile management, class
+and attendance management, and assignment creation and grading.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from werkzeug.utils import secure_filename
@@ -21,7 +24,14 @@ teacher_bp = Blueprint('teacher', __name__)
 @teacher_bp.route('/dashboard')
 @role_required('teacher')
 def dashboard():
-    """Teacher dashboard"""
+    """Renders the teacher's main dashboard.
+
+    Displays a summary of the teacher's assigned classes, recent
+    assignments, and an overview of today's attendance.
+
+    Returns:
+        The rendered teacher dashboard template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -71,7 +81,11 @@ def dashboard():
 @teacher_bp.route('/profile', methods=['GET', 'POST'])
 @role_required('teacher')
 def profile():
-    """Teacher profile management"""
+    """Handles the viewing and editing of a teacher's profile.
+
+    Returns:
+        The rendered teacher profile template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -116,7 +130,11 @@ def profile():
 @teacher_bp.route('/classes')
 @role_required('teacher')
 def classes():
-    """View assigned classes"""
+    """Renders the page displaying the teacher's assigned classes and subjects.
+
+    Returns:
+        The rendered "classes" template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -147,7 +165,14 @@ def classes():
 @teacher_bp.route('/attendance')
 @role_required('teacher')
 def attendance():
-    """Teacher attendance interface"""
+    """Renders the teacher's attendance interface.
+
+    Allows the teacher to select one of their assigned classes and a date
+    to view and mark attendance.
+
+    Returns:
+        The rendered attendance template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -211,7 +236,14 @@ def attendance():
 @teacher_bp.route('/mark_attendance', methods=['POST'])
 @role_required('teacher')
 def mark_attendance():
-    """Mark attendance for assigned class"""
+    """Handles the form submission for marking attendance.
+
+    Processes the attendance data for a class and saves it to the database.
+    Also triggers attendance alerts for absent students.
+
+    Returns:
+        A redirect to the attendance page for the same class and date.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -289,7 +321,14 @@ def mark_attendance():
 @teacher_bp.route('/assignments')
 @role_required('teacher')
 def assignments():
-    """Assignment management dashboard for teachers"""
+    """Renders the assignment management dashboard for teachers.
+
+    Displays a list of assignments created by the teacher, along with
+    submission statistics.
+
+    Returns:
+        The rendered assignments template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -328,7 +367,11 @@ def assignments():
 @teacher_bp.route('/assignments/create', methods=['POST'])
 @role_required('teacher')
 def create_assignment():
-    """Create new assignment"""
+    """API endpoint for creating a new assignment.
+
+    Returns:
+        JSON: A JSON object with the result of the creation operation.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -377,7 +420,14 @@ def create_assignment():
 @teacher_bp.route('/assignments/<int:assignment_id>')
 @role_required('teacher')
 def view_assignment(assignment_id):
-    """View assignment details"""
+    """Renders the detailed view for a single assignment.
+
+    Args:
+        assignment_id (int): The ID of the assignment to view.
+
+    Returns:
+        The rendered assignment view template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -398,7 +448,14 @@ def view_assignment(assignment_id):
 @teacher_bp.route('/assignments/<int:assignment_id>/submissions')
 @role_required('teacher')
 def assignment_submissions(assignment_id):
-    """View assignment submissions"""
+    """Renders the page for viewing submissions for an assignment.
+
+    Args:
+        assignment_id (int): The ID of the assignment.
+
+    Returns:
+        The rendered assignment submissions template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -425,7 +482,14 @@ def assignment_submissions(assignment_id):
 @teacher_bp.route('/assignments/<int:assignment_id>/delete', methods=['POST'])
 @role_required('teacher')
 def delete_assignment(assignment_id):
-    """Delete assignment"""
+    """API endpoint for deleting an assignment.
+
+    Args:
+        assignment_id (int): The ID of the assignment to delete.
+
+    Returns:
+        JSON: A JSON object with the result of the deletion.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -440,7 +504,11 @@ def delete_assignment(assignment_id):
 @teacher_bp.route('/study_materials')
 @role_required('teacher')
 def study_materials():
-    """Study materials management"""
+    """Renders the study materials management page.
+
+    Returns:
+        The rendered study materials template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -474,7 +542,11 @@ def study_materials():
 @teacher_bp.route('/study_materials/create', methods=['POST'])
 @role_required('teacher')
 def create_study_material():
-    """Create study material"""
+    """API endpoint for creating a new study material.
+
+    Returns:
+        JSON: A JSON object with the result of the creation operation.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first_or_404()
     
@@ -511,7 +583,11 @@ def create_study_material():
 @teacher_bp.route('/edit_profile', methods=['GET', 'POST'])
 @role_required('teacher')
 def edit_profile():
-    """Edit teacher profile"""
+    """Renders the page for editing the teacher's profile.
+
+    Returns:
+        The rendered "edit profile" template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -565,7 +641,12 @@ def edit_profile():
 @teacher_bp.route('/change_password', methods=['GET', 'POST'])
 @role_required('teacher')
 def change_password():
-    """Change teacher password"""
+    """Handles the changing of a teacher's password.
+
+    Returns:
+        The rendered "change password" template, or a redirect to the
+        profile page upon successful password change.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -606,7 +687,13 @@ def change_password():
 @teacher_bp.route('/schedule')
 @role_required('teacher')
 def schedule():
-    """View teacher schedule"""
+    """Renders the teacher's schedule page.
+
+    Note: This is currently a placeholder with mock data.
+
+    Returns:
+        The rendered schedule template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -645,7 +732,13 @@ def schedule():
 @teacher_bp.route('/reports')
 @role_required('teacher')
 def reports():
-    """View teacher reports and analytics"""
+    """Renders the teacher's reports and analytics page.
+
+    Note: This is currently a placeholder with mock data.
+
+    Returns:
+        The rendered reports template.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     
@@ -678,7 +771,15 @@ def reports():
 @teacher_bp.route('/api/subjects/<int:class_id>')
 @role_required('teacher')
 def get_class_subjects(class_id):
-    """API endpoint to get subjects for a class"""
+    """API endpoint to get the subjects a teacher is assigned to for a
+    specific class.
+
+    Args:
+        class_id (int): The ID of the class.
+
+    Returns:
+        JSON: A JSON object containing a list of subjects.
+    """
     user = User.query.get(session['user_id'])
     teacher = Teacher.query.filter_by(user_id=user.id).first()
     

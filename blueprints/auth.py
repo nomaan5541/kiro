@@ -1,5 +1,8 @@
-"""
-Authentication Blueprint - Handles login, logout, and authentication
+"""Authentication Blueprint.
+
+Handles all authentication-related functionality, including user login,
+logout, and session management. It provides routes for different user roles
+to log in.
 """
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
@@ -13,7 +16,12 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """Main login page with role-based tabs"""
+    """Renders the main login page and handles the login form submission.
+
+    This function serves the login page with tabs for different user roles.
+    Based on the selected role, it delegates the login logic to the
+    appropriate handler function.
+    """
     if request.method == 'POST':
         role = request.form.get('role', 'student')
         
@@ -29,7 +37,11 @@ def login():
 
 @auth_bp.route('/super-login', methods=['GET', 'POST'])
 def super_login():
-    """Hidden super admin login page"""
+    """Renders the super admin login page and handles login.
+
+    This is a separate, "hidden" login page for super admins. It validates
+    the credentials and redirects to the super admin dashboard upon success.
+    """
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -53,7 +65,11 @@ def super_login():
 
 
 def handle_student_login():
-    """Handle student login with admission number, phone, and DOB"""
+    """Handles the login process for students.
+
+    Validates student credentials (admission number, phone, and date of birth)
+    and creates a session for the student upon successful authentication.
+    """
     admission_no = request.form.get('admission_no')
     phone = request.form.get('phone')
     dob = request.form.get('dob')
@@ -77,7 +93,11 @@ def handle_student_login():
 
 
 def handle_teacher_login():
-    """Handle teacher login with email and password"""
+    """Handles the login process for teachers.
+
+    Validates teacher credentials (email and password) and creates a session
+    for the teacher upon successful authentication.
+    """
     email = request.form.get('email')
     password = request.form.get('password')
     
@@ -98,7 +118,12 @@ def handle_teacher_login():
 
 
 def handle_admin_login():
-    """Handle school admin login with email and password"""
+    """Handles the login process for school admins.
+
+    Validates school admin credentials (email and password) and creates a
+    session for the admin upon successful authentication. Includes extensive
+    debugging output.
+    """
     email = request.form.get('email')
     password = request.form.get('password')
     
@@ -150,7 +175,10 @@ def handle_admin_login():
 
 @auth_bp.route('/logout')
 def logout():
-    """Logout user"""
+    """Logs the current user out.
+
+    Clears the session and redirects to the main login page.
+    """
     session.clear()
     flash('You have been logged out successfully', 'success')
     return redirect(url_for('auth.login'))
@@ -161,7 +189,18 @@ def logout():
 
 @auth_bp.route('/api/login', methods=['POST'])
 def api_login():
-    """API endpoint for login"""
+    """API endpoint for user login.
+
+    This is a duplicate of the API login endpoint in `api.py` and may be
+    deprecated in the future.
+
+    Args:
+        email (str): The user's email address.
+        password (str): The user's password.
+
+    Returns:
+        dict: A dictionary containing the JWT access token and user information.
+    """
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('password'):

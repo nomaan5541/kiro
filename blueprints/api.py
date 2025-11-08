@@ -1,5 +1,8 @@
-"""
-API Blueprint - Handles REST API endpoints for mobile app integration
+"""API Blueprint for the School Management System.
+
+This blueprint handles all the RESTful API endpoints, primarily intended for
+integration with a mobile application or other external services. It covers
+authentication, student and teacher data, attendance, fees, and notifications.
 """
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, create_access_token
@@ -20,7 +23,19 @@ api_bp = Blueprint('api', __name__)
 # Authentication endpoints
 @api_bp.route('/auth/login', methods=['POST'])
 def api_login():
-    """API login endpoint"""
+    """API login endpoint for all user roles.
+
+    Authenticates a user based on email and password and returns a JWT
+    access token along with user and profile information.
+
+    Args:
+        email (str): The user's email address.
+        password (str): The user's password.
+
+    Returns:
+        dict: A dictionary containing the access token, user data, and
+              role-specific profile data.
+    """
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('password'):
@@ -54,7 +69,13 @@ def api_login():
 @api_bp.route('/user/profile')
 @jwt_required()
 def get_user_profile():
-    """Get current user profile"""
+    """Get the profile of the currently authenticated user.
+
+    Requires a valid JWT token.
+
+    Returns:
+        dict: A dictionary containing the user's profile information.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -68,7 +89,14 @@ def get_user_profile():
 @api_bp.route('/student/dashboard')
 @jwt_required()
 def student_dashboard():
-    """Get student dashboard data"""
+    """Get dashboard data for a student.
+
+    Provides a summary of the student's attendance, fee status, and recent
+    payments. Requires a valid student JWT token.
+
+    Returns:
+        dict: A dictionary containing the student's dashboard data.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -127,7 +155,18 @@ def student_dashboard():
 @api_bp.route('/student/attendance')
 @jwt_required()
 def student_attendance():
-    """Get student attendance records"""
+    """Get attendance records for a student.
+
+    Allows filtering by start and end dates. Requires a valid student
+    JWT token.
+
+    Args:
+        start_date (str, optional): The start date in 'YYYY-MM-DD' format.
+        end_date (str, optional): The end date in 'YYYY-MM-DD' format.
+
+    Returns:
+        dict: A dictionary containing a list of attendance records.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -159,7 +198,14 @@ def student_attendance():
 @api_bp.route('/student/fees')
 @jwt_required()
 def student_fees():
-    """Get student fee information"""
+    """Get fee information for a student.
+
+    Provides the student's fee status and a complete payment history.
+    Requires a valid student JWT token.
+
+    Returns:
+        dict: A dictionary containing the fee status and payment history.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -188,7 +234,14 @@ def student_fees():
 @api_bp.route('/teacher/dashboard')
 @jwt_required()
 def teacher_dashboard():
-    """Get teacher dashboard data"""
+    """Get dashboard data for a teacher.
+
+    Provides a list of assigned classes and the attendance status for today.
+    Requires a valid teacher JWT token.
+
+    Returns:
+        dict: A dictionary containing the teacher's dashboard data.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -230,7 +283,18 @@ def teacher_dashboard():
 @api_bp.route('/teacher/classes/<int:class_id>/students')
 @jwt_required()
 def get_class_students(class_id):
-    """Get students in a class"""
+    """Get a list of students in a specific class.
+
+    Verifies that the teacher is assigned to the requested class.
+    Requires a valid teacher JWT token.
+
+    Args:
+        class_id (int): The ID of the class.
+
+    Returns:
+        dict: A dictionary containing the class information and a list of
+              students.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -263,7 +327,21 @@ def get_class_students(class_id):
 @api_bp.route('/teacher/attendance', methods=['POST'])
 @jwt_required()
 def mark_attendance_api():
-    """Mark attendance via API"""
+    """Mark attendance for a class.
+
+    Allows a teacher to submit attendance records for multiple students at
+    once. Verifies that the teacher is assigned to the class. Requires a
+    valid teacher JWT token.
+
+    Args:
+        class_id (int): The ID of the class.
+        date (str): The date of attendance in 'YYYY-MM-DD' format.
+        attendance_records (list): A list of dictionaries, each containing
+                                   'student_id' and 'status'.
+
+    Returns:
+        dict: A success message or an error.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -341,7 +419,20 @@ def mark_attendance_api():
 @api_bp.route('/payment/create-order', methods=['POST'])
 @jwt_required()
 def create_payment_order():
-    """Create payment order for online payment"""
+    """Create a payment order for online fee payment.
+
+    Interfaces with a payment gateway service (e.g., Razorpay, Stripe) to
+    create a payment order. Requires a valid JWT token.
+
+    Args:
+        student_id (int): The ID of the student making the payment.
+        amount (float): The amount to be paid.
+        payment_method (str, optional): The payment gateway to use.
+                                        Defaults to 'razorpay'.
+
+    Returns:
+        dict: The payment order details from the gateway.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -392,7 +483,23 @@ def create_payment_order():
 @api_bp.route('/payment/verify', methods=['POST'])
 @jwt_required()
 def verify_payment():
-    """Verify and process payment"""
+    """Verify and process a fee payment.
+
+    Verifies the payment with the payment gateway and, if successful,
+    updates the student's fee status. Requires a valid JWT token.
+
+    Args:
+        student_id (int): The ID of the student.
+        amount (float): The payment amount.
+        payment_method (str): The payment gateway used.
+        payment_id (str): The payment ID from the gateway.
+        order_id (str): The order ID from the gateway.
+        signature (str, optional): The payment signature for verification
+                                   (e.g., from Razorpay).
+
+    Returns:
+        dict: The payment details upon successful verification.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -432,7 +539,14 @@ def verify_payment():
 @api_bp.route('/notifications')
 @jwt_required()
 def get_notifications():
-    """Get user notifications"""
+    """Get notifications for the authenticated user.
+
+    Retrieves notifications based on the user's role and school.
+    Requires a valid JWT token.
+
+    Returns:
+        dict: A dictionary containing a list of notifications.
+    """
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
     
@@ -463,7 +577,13 @@ def get_notifications():
 # General endpoints
 @api_bp.route('/health')
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint.
+
+    Provides a simple health check to verify that the API is running.
+
+    Returns:
+        dict: A dictionary with the API status and timestamp.
+    """
     return jsonify({
         'status': 'healthy', 
         'message': 'School Management System API is running',
@@ -473,7 +593,13 @@ def health_check():
 
 @api_bp.route('/version')
 def version_info():
-    """API version information"""
+    """API version information.
+
+    Returns the current version and a list of features of the API.
+
+    Returns:
+        dict: A dictionary containing the API version and features.
+    """
     return jsonify({
         'version': '1.0.0',
         'api_name': 'School Management System API',
