@@ -65,6 +65,9 @@
     <button class="btn btn-primary btn-sm" onclick="showSendNotificationModal()">
         <i class="fas fa-paper-plane"></i> Send Notification
     </button>
+    <button class="btn btn-info btn-sm" onclick="showHolidayAnnouncementModal()">
+        <i class="fas fa-bullhorn"></i> Holiday Announcement
+    </button>
 </div>
 {% endblock %}{
 % block extra_css %}
@@ -1031,6 +1034,49 @@ Send Notification Modal -->
 {% block extra_js %}
 {{ super() }}
 <script>
+// Holiday Announcement Modal
+function showHolidayAnnouncementModal() {
+    document.getElementById('holidayAnnouncementModal').style.display = 'flex';
+}
+
+function sendHolidayAnnouncement() {
+    const title = document.getElementById('holidayTitle').value;
+    const message = document.getElementById('holidayMessage').value;
+
+    if (!title || !message) {
+        showNotification('Please fill in all fields.', 'error');
+        return;
+    }
+
+    const sendBtn = event.target;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    sendBtn.disabled = true;
+
+    fetch('{{ url_for("school_admin.holiday_announcement") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title, message }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Holiday announcement sent successfully!', 'success');
+            closeModal('holidayAnnouncementModal');
+        } else {
+            showNotification('Error sending announcement: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('An error occurred while sending the announcement.', 'error');
+    })
+    .finally(() => {
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Announcement';
+        sendBtn.disabled = false;
+    });
+}
+
 // Tab Management
 function switchTab(tabName) {
     // Hide all tab contents
@@ -1346,3 +1392,34 @@ function showNotification(message, type) {
 }
 </script>
 {% endblock %}
+
+<!-- Holiday Announcement Modal -->
+<div id="holidayAnnouncementModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-bullhorn"></i> Holiday Announcement</h3>
+            <button class="modal-close" onclick="closeModal('holidayAnnouncementModal')">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <form id="holidayAnnouncementForm">
+                <div class="form-group">
+                    <label class="form-label">Announcement Title *</label>
+                    <input type="text" class="form-input" id="holidayTitle" placeholder="e.g., Diwali Holiday" required>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Message *</label>
+                    <textarea class="form-textarea" id="holidayMessage" rows="6" placeholder="e.g., The school will be closed on..." required></textarea>
+                </div>
+            </form>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal('holidayAnnouncementModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="sendHolidayAnnouncement()">
+                <i class="fas fa-paper-plane"></i> Send Announcement
+            </button>
+        </div>
+    </div>
+</div>

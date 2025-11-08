@@ -1,23 +1,12 @@
-"""Data models for classes and subjects.
-
-This module defines the `Class` model for representing a class in the school
-and the `Subject` model for representing a subject taught in a class.
+"""
+Class model for managing school classes and subjects
 """
 from extensions import db
 from datetime import datetime
 
 
 class Class(db.Model):
-    """Represents a class in the school.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        class_name (str): The name of the class (e.g., "Class 10").
-        section (str): The section of the class (e.g., "A").
-        capacity (int): The capacity of the class.
-        academic_year (str): The academic year.
-    """
+    """Class model for managing school classes"""
     __tablename__ = 'classes'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -47,21 +36,17 @@ class Class(db.Model):
         return f'<Class {self.class_name}{" " + self.section if self.section else ""}>'
     
     def get_display_name(self):
-        """Returns the full display name of the class (e.g., "Class 10 A")."""
+        """Get display name for the class"""
         if self.section:
             return f"{self.class_name} {self.section}"
         return self.class_name
     
     def get_student_count(self):
-        """Returns the number of students in the class."""
+        """Get number of students in this class"""
         return len(self.students)
     
     def to_dict(self):
-        """Serializes the Class object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the class.
-        """
+        """Convert class to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -76,16 +61,7 @@ class Class(db.Model):
 
 
 class Subject(db.Model):
-    """Represents a subject taught in a class.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        class_id (int): Foreign key for the class.
-        name (str): The name of the subject (e.g., "Mathematics").
-        code (str): The subject code (e.g., "MATH").
-        description (str): A description of the subject.
-    """
+    """Subject model for managing class subjects"""
     __tablename__ = 'subjects'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -109,11 +85,7 @@ class Subject(db.Model):
         return f'<Subject {self.name}>'
     
     def to_dict(self):
-        """Serializes the Subject object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the subject.
-        """
+        """Convert subject to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,

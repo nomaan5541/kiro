@@ -1,7 +1,5 @@
-"""Data models for system settings and backups.
-
-This module defines the `SystemSettings` model for managing school-specific
-configurations and the `SchoolBackup` model for tracking data backups.
+"""
+System settings model for managing school configuration
 """
 from extensions import db
 from datetime import datetime
@@ -9,7 +7,6 @@ from enum import Enum
 
 
 class SettingType(Enum):
-    """Enumeration for the data type of a setting."""
     STRING = 'string'
     INTEGER = 'integer'
     FLOAT = 'float'
@@ -19,21 +16,7 @@ class SettingType(Enum):
 
 
 class SystemSettings(db.Model):
-    """Represents a single configuration setting for a school.
-
-    This model provides a key-value store for school-specific settings,
-    allowing for flexible configuration of the application.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        key (str): The unique key for the setting.
-        value (str): The value of the setting.
-        setting_type (SettingType): The data type of the setting.
-        category (str): The category of the setting.
-        display_name (str): A human-readable name for the setting.
-        description (str): A description of the setting.
-    """
+    """System settings model for school configuration"""
     __tablename__ = 'system_settings'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -74,11 +57,7 @@ class SystemSettings(db.Model):
         return f'<SystemSettings {self.key}={self.value}>'
     
     def get_typed_value(self):
-        """Returns the setting's value converted to its proper data type.
-
-        Returns:
-            The typed value of the setting.
-        """
+        """Get value converted to appropriate type"""
         if self.value is None:
             return None
         
@@ -101,11 +80,7 @@ class SystemSettings(db.Model):
             return self.default_value
     
     def set_typed_value(self, value):
-        """Sets the setting's value, converting it to a string.
-
-        Args:
-            value: The new value for the setting.
-        """
+        """Set value with type conversion"""
         if value is None:
             self.value = None
             return
@@ -122,11 +97,7 @@ class SystemSettings(db.Model):
             self.value = str(value)
     
     def to_dict(self):
-        """Serializes the SystemSettings object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the setting.
-        """
+        """Convert setting to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -147,18 +118,7 @@ class SystemSettings(db.Model):
 
 
 class SchoolBackup(db.Model):
-    """Represents a backup of a school's data.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        created_by (int): Foreign key for the user who created the backup.
-        backup_name (str): The name of the backup.
-        backup_type (str): The type of backup ('manual', 'automatic').
-        file_path (str): The path to the backup file.
-        file_size (int): The size of the backup file in bytes.
-        status (str): The status of the backup.
-    """
+    """Model for tracking school data backups"""
     __tablename__ = 'school_backups'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -197,17 +157,13 @@ class SchoolBackup(db.Model):
         return f'<SchoolBackup {self.backup_name} ({self.status})>'
     
     def get_file_size_mb(self):
-        """Returns the file size in megabytes."""
+        """Get file size in MB"""
         if self.file_size:
             return round(self.file_size / (1024 * 1024), 2)
         return 0
     
     def to_dict(self):
-        """Serializes the SchoolBackup object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the backup.
-        """
+        """Convert backup to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,

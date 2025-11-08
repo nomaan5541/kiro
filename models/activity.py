@@ -1,9 +1,5 @@
 """
-Data models for activity logging and system metrics.
-
-This module defines the `ActivityLog` model, which is used to create an audit
-trail of all significant actions performed within the system. It also defines
-the `SystemMetrics` model for tracking performance and usage statistics.
+Activity Log model for tracking system activities and audit trails
 """
 from extensions import db
 from datetime import datetime
@@ -11,7 +7,6 @@ from enum import Enum
 
 
 class ActivityType(Enum):
-    """Enumeration for the different types of activities that can be logged."""
     # User activities
     USER_LOGIN = 'user_login'
     USER_LOGOUT = 'user_logout'
@@ -57,24 +52,7 @@ class ActivityType(Enum):
 
 
 class ActivityLog(db.Model):
-    """Represents a single entry in the activity log.
-
-    This model is used to create an audit trail of actions performed by users
-    or the system.
-
-    Attributes:
-        id (int): The primary key.
-        school_id (int): The ID of the school where the activity occurred.
-        user_id (int): The ID of the user who performed the activity.
-        activity_type (ActivityType): The type of activity.
-        description (str): A human-readable description of the activity.
-        entity_type (str): The type of the entity related to the activity.
-        entity_id (int): The ID of the related entity.
-        extra_data (str): A JSON string for storing additional data.
-        ip_address (str): The IP address from which the activity was performed.
-        user_agent (str): The user agent of the client.
-        created_at (datetime): The timestamp of the activity.
-    """
+    """Activity log model for tracking all system activities"""
     __tablename__ = 'activity_logs'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -110,22 +88,7 @@ class ActivityLog(db.Model):
     def log_activity(cls, activity_type, description, school_id=None, user_id=None, 
                     entity_type=None, entity_id=None, extra_data=None, 
                     ip_address=None, user_agent=None):
-        """Creates and saves a new activity log entry.
-
-        Args:
-            activity_type (ActivityType): The type of activity.
-            description (str): A description of the activity.
-            school_id (int, optional): The ID of the associated school.
-            user_id (int, optional): The ID of the user performing the action.
-            entity_type (str, optional): The type of the related entity.
-            entity_id (int, optional): The ID of the related entity.
-            extra_data (str, optional): Additional JSON data.
-            ip_address (str, optional): The user's IP address.
-            user_agent (str, optional): The user's user agent.
-
-        Returns:
-            ActivityLog: The newly created activity log object.
-        """
+        """Helper method to create activity log entries"""
         activity = cls(
             school_id=school_id,
             user_id=user_id,
@@ -141,11 +104,7 @@ class ActivityLog(db.Model):
         return activity
     
     def to_dict(self):
-        """Serializes the ActivityLog object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the activity log.
-        """
+        """Convert activity log to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -162,22 +121,7 @@ class ActivityLog(db.Model):
 
 
 class SystemMetrics(db.Model):
-    """Represents a single data point for system metrics.
-
-    This model is used to track various system performance and usage
-    statistics over time.
-
-    Attributes:
-        id (int): The primary key.
-        metric_name (str): The name of the metric.
-        metric_value (float): The value of the metric.
-        metric_unit (str): The unit of the metric.
-        school_id (int): The ID of the school associated with the metric.
-        context (str): Additional context for the metric.
-        date (date): The date of the metric.
-        hour (int): The hour of the metric (for hourly data).
-        created_at (datetime): The timestamp of the record.
-    """
+    """System metrics model for tracking system performance and usage"""
     __tablename__ = 'system_metrics'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -213,20 +157,7 @@ class SystemMetrics(db.Model):
     @classmethod
     def record_metric(cls, metric_name, metric_value, metric_unit=None, 
                      school_id=None, context=None, date=None, hour=None):
-        """Creates and saves a new system metric record.
-
-        Args:
-            metric_name (str): The name of the metric.
-            metric_value (float): The value of the metric.
-            metric_unit (str, optional): The unit of the metric.
-            school_id (int, optional): The ID of the associated school.
-            context (str, optional): Additional context.
-            date (date, optional): The date of the metric. Defaults to today.
-            hour (int, optional): The hour of the metric.
-
-        Returns:
-            SystemMetrics: The newly created metric object.
-        """
+        """Helper method to record system metrics"""
         if date is None:
             date = datetime.utcnow().date()
         
@@ -243,11 +174,7 @@ class SystemMetrics(db.Model):
         return metric
     
     def to_dict(self):
-        """Serializes the SystemMetrics object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the system metric.
-        """
+        """Convert system metrics to dictionary"""
         return {
             'id': self.id,
             'metric_name': self.metric_name,

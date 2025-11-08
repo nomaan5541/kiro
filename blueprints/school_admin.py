@@ -3668,3 +3668,33 @@ def administrative_reports():
 
 
 # Duplicate function removed - using the enhanced export_report function above
+
+@school_admin_bp.route('/holiday_announcement', methods=['POST'])
+@role_required('school_admin')
+def holiday_announcement():
+    """API endpoint to send a holiday announcement."""
+    user = User.query.get(session['user_id'])
+    school = School.query.get(user.school_id)
+
+    data = request.get_json()
+    title = data.get('title')
+    message = data.get('message')
+
+    if not title or not message:
+        return jsonify({'success': False, 'message': 'Title and message are required.'}), 400
+
+    try:
+        from services.notification_service import NotificationService
+        from models.student import Student
+
+        notification_service = NotificationService(school.id)
+        students = Student.query.filter_by(school_id=school.id).all()
+
+        full_message = f"{title}: {message}"
+
+        notification_service.send_bulk_notification(students, full_message, 'holiday_announcement')
+
+        return jsonify({'success': True, 'message': 'Holiday announcement sent successfully.'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

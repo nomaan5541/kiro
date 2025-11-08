@@ -1,7 +1,5 @@
-"""Data model for users.
-
-This module defines the `User` model, which is used for authentication and
-role-based access control for all users in the system.
+"""
+User model for authentication and role management
 """
 from extensions import db
 from datetime import datetime
@@ -9,7 +7,6 @@ from enum import Enum
 
 
 class UserRole(Enum):
-    """Enumeration for the different user roles in the system."""
     SUPER_ADMIN = 'super_admin'
     SCHOOL_ADMIN = 'school_admin'
     TEACHER = 'teacher'
@@ -18,20 +15,7 @@ class UserRole(Enum):
 
 
 class User(db.Model):
-    """Represents a user of the system.
-
-    This model is used for authentication and authorization. Each user has a
-    specific role that determines their permissions.
-
-    Attributes:
-        id (int): Primary key.
-        name (str): The full name of the user.
-        email (str): The user's email address (used for login).
-        password_hash (str): The hashed password.
-        role (UserRole): The user's role.
-        school_id (int): Foreign key for the school the user belongs to.
-        is_active (bool): Whether the user's account is active.
-    """
+    """User model for all system users"""
     __tablename__ = 'users'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -51,11 +35,7 @@ class User(db.Model):
         return f'<User {self.email}>'
     
     def to_dict(self):
-        """Serializes the User object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the user.
-        """
+        """Convert user to dictionary"""
         return {
             'id': self.id,
             'name': self.name,

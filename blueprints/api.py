@@ -12,6 +12,7 @@ from models.student import Student
 from models.teacher import Teacher
 from models.attendance import Attendance, AttendanceStatus
 from models.fee import Payment, StudentFeeStatus
+from utils.notification_service import NotificationService
 from models.notification import NotificationLog
 from models.classes import Class
 from datetime import datetime, date, timedelta
@@ -378,6 +379,7 @@ def mark_attendance_api():
         attendance_date = datetime.strptime(attendance_date, '%Y-%m-%d').date()
         
         # Process attendance records
+        notification_service = NotificationService(teacher.school_id)
         for record in attendance_records:
             student_id = record.get('student_id')
             status = record.get('status')
@@ -405,6 +407,12 @@ def mark_attendance_api():
                     marked_by=user.id
                 )
                 db.session.add(attendance)
+
+            # Send notification if student is absent or on leave
+            if status in ['absent', 'leave']:
+                student = Student.query.get(student_id)
+                if student:
+                    notification_service.send_attendance_alert(student, status, attendance_date)
         
         db.session.commit()
         

@@ -1,7 +1,5 @@
-"""Data models for fee and payment management.
-
-This module defines the SQLAlchemy models for managing school fees, including
-fee structures, payments, and student fee statuses.
+"""
+Fee and Payment models for managing school fees
 """
 from extensions import db
 from datetime import datetime, date
@@ -11,7 +9,6 @@ from sqlalchemy import Numeric
 
 
 class PaymentMode(Enum):
-    """Enumeration for the different modes of payment."""
     CASH = 'cash'
     ONLINE = 'online'
     CHEQUE = 'cheque'
@@ -19,7 +16,6 @@ class PaymentMode(Enum):
 
 
 class PaymentStatus(Enum):
-    """Enumeration for the status of a payment."""
     PENDING = 'pending'
     COMPLETED = 'completed'
     FAILED = 'failed'
@@ -27,18 +23,7 @@ class PaymentStatus(Enum):
 
 
 class FeeStructure(db.Model):
-    """Represents the fee structure for a specific class and academic year.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        class_id (int): Foreign key for the class.
-        academic_year (str): The academic year.
-        total_fee (Decimal): The total fee for the academic year.
-        installments (int): The number of installments for fee payment.
-        is_active (bool): Whether the fee structure is active.
-        // ... and other fee components
-    """
+    """Fee structure model for defining class-wise fees"""
     __tablename__ = 'fee_structures'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -83,11 +68,7 @@ class FeeStructure(db.Model):
         return f'<FeeStructure {self.class_info.get_display_name() if self.class_info else "Unknown"} - {self.academic_year}>'
     
     def to_dict(self):
-        """Serializes the FeeStructure object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the fee structure.
-        """
+        """Convert fee structure to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -110,21 +91,7 @@ class FeeStructure(db.Model):
 
 
 class Payment(db.Model):
-    """Represents a single fee payment record.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        student_id (int): Foreign key for the student.
-        fee_structure_id (int): Foreign key for the fee structure.
-        receipt_no (str): The unique receipt number.
-        amount (Decimal): The amount paid.
-        payment_date (date): The date of the payment.
-        payment_mode (PaymentMode): The mode of payment.
-        status (PaymentStatus): The status of the payment.
-        transaction_id (str): The transaction ID for online payments.
-        collected_by (int): The ID of the user who collected the payment.
-    """
+    """Payment model for tracking fee payments"""
     __tablename__ = 'payments'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -162,11 +129,7 @@ class Payment(db.Model):
         return f'<Payment {self.receipt_no} - {self.student.name if self.student else "Unknown"} - ₹{self.amount}>'
     
     def to_dict(self):
-        """Serializes the Payment object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the payment.
-        """
+        """Convert payment to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,
@@ -187,18 +150,7 @@ class Payment(db.Model):
 
 
 class PaymentHistory(db.Model):
-    """Represents the history of changes for a payment record.
-
-    Attributes:
-        id (int): Primary key.
-        payment_id (int): Foreign key for the payment.
-        action (str): The action performed (e.g., 'created', 'updated').
-        old_status (str): The previous status of the payment.
-        new_status (str): The new status of the payment.
-        remarks (str): Remarks about the change.
-        changed_by (int): The ID of the user who made the change.
-        changed_at (datetime): The timestamp of the change.
-    """
+    """Payment history model for tracking payment changes"""
     __tablename__ = 'payment_history'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -223,11 +175,7 @@ class PaymentHistory(db.Model):
         return f'<PaymentHistory {self.payment.receipt_no if self.payment else "Unknown"} - {self.action}>'
     
     def to_dict(self):
-        """Serializes the PaymentHistory object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the payment history.
-        """
+        """Convert payment history to dictionary"""
         return {
             'id': self.id,
             'payment_id': self.payment_id,
@@ -242,25 +190,7 @@ class PaymentHistory(db.Model):
 
 
 class StudentFeeStatus(db.Model):
-    """Tracks the overall fee payment status for a student.
-
-    This model provides a summary of a student's total fees, paid amount,
-    and remaining balance for a specific fee structure.
-
-    Attributes:
-        id (int): Primary key.
-        school_id (int): Foreign key for the school.
-        student_id (int): Foreign key for the student.
-        fee_structure_id (int): Foreign key for the fee structure.
-        total_fee (Decimal): The total fee amount.
-        paid_amount (Decimal): The total amount paid by the student.
-        remaining_amount (Decimal): The outstanding balance.
-        payment_percentage (float): The percentage of the fee paid.
-        is_fully_paid (bool): Whether the fee is fully paid.
-        is_overdue (bool): Whether the fee is overdue.
-        next_due_date (date): The next due date for payment.
-        last_payment_date (date): The date of the last payment.
-    """
+    """Student fee status model for tracking overall fee payment status"""
     __tablename__ = 'student_fee_status'
     
     id = db.Column(db.Integer, primary_key=True)
@@ -300,11 +230,7 @@ class StudentFeeStatus(db.Model):
         return f'<StudentFeeStatus {self.student.name if self.student else "Unknown"} - {self.payment_percentage}%>'
     
     def calculate_status(self):
-        """Calculates and updates the payment status fields.
-
-        This method should be called whenever a payment is made or the fee
-        structure is updated.
-        """
+        """Calculate payment status and percentage"""
         if self.total_fee > 0:
             self.payment_percentage = (float(self.paid_amount) / float(self.total_fee)) * 100
             self.remaining_amount = self.total_fee - self.paid_amount
@@ -321,11 +247,7 @@ class StudentFeeStatus(db.Model):
             self.is_overdue = False
     
     def to_dict(self):
-        """Serializes the StudentFeeStatus object to a dictionary.
-
-        Returns:
-            dict: A dictionary representation of the student's fee status.
-        """
+        """Convert student fee status to dictionary"""
         return {
             'id': self.id,
             'school_id': self.school_id,
